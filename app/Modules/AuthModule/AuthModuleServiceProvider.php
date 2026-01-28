@@ -2,13 +2,19 @@
 
 namespace App\Modules\AuthModule;
 
+use App\Modules\AuthModule\Infrastructure\Persistence\EloquentInvitationRepository;
+use App\Modules\AuthModule\Infrastructure\Persistence\EloquentUserRepository;
+use App\Modules\AuthModule\Ports\Repositories\InvitationRepositoryInterface;
+use App\Modules\AuthModule\Ports\Repositories\UserRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
 
 class AuthModuleServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
+    public array $bindings = [
+        InvitationRepositoryInterface::class => EloquentInvitationRepository::class,
+        UserRepositoryInterface::class => EloquentUserRepository::class,
+    ];
+
     public function register(): void
     {
         //

@@ -20,6 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_manager',
     ];
 
     /**
@@ -42,7 +43,18 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_manager' => 'boolean',
         ];
+    }
+
+    /**
+     * Determine if the user is a manager.
+     * 
+     * @return bool
+     */
+    public function isManager(): bool
+    {
+        return $this->is_manager ?? false;
     }
 
     /**
