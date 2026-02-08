@@ -13,6 +13,7 @@ return new class extends Migration
             $table->string('email');
             $table->string('token', 64)->unique();
             $table->foreignId('invited_by')->constrained('users')->cascadeOnDelete();
+            $table->string('resource_scope')->nullable();
             $table->timestamp('expires_at');
             $table->timestamp('accepted_at')->nullable();
             $table->timestamps();

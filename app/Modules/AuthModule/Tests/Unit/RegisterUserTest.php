@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\Invitation;
 use App\Modules\AuthModule\Models\User;
 use App\Modules\AuthModule\Ports\Repositories\InvitationRepositoryInterface;
 use App\Modules\AuthModule\Ports\Repositories\UserRepositoryInterface;
+use App\Modules\AuthModule\Ports\Services\AuditLoggerInterface;
 use App\Modules\AuthModule\UseCases\Register\RegisterUser;
 use Carbon\Carbon;
 use Mockery;
@@ -16,6 +17,7 @@ class RegisterUserTest extends TestCase
 {
     private MockInterface $invitations;
     private MockInterface $users;
+    private MockInterface $auditLogger;
     private RegisterUser $useCase;
 
     protected function setUp(): void
@@ -24,7 +26,8 @@ class RegisterUserTest extends TestCase
 
         $this->invitations = Mockery::mock(InvitationRepositoryInterface::class);
         $this->users = Mockery::mock(UserRepositoryInterface::class);
-        $this->useCase = new RegisterUser($this->invitations, $this->users);
+        $this->auditLogger = Mockery::mock(AuditLoggerInterface::class);
+        $this->useCase = new RegisterUser($this->invitations, $this->users, $this->auditLogger);
     }
 
     protected function tearDown(): void
@@ -66,6 +69,10 @@ class RegisterUserTest extends TestCase
             ->with($invitation)
             ->once();
 
+        $this->auditLogger
+            ->shouldReceive('logUserRegistered')
+            ->once();
+
         $result = $this->useCase->execute($token, $name, $password);
 
         $this->assertTrue($result->success);
@@ -85,6 +92,7 @@ class RegisterUserTest extends TestCase
 
         $this->users->shouldNotReceive('create');
         $this->invitations->shouldNotReceive('markAsAccepted');
+        $this->auditLogger->shouldNotReceive('logUserRegistered');
 
         $result = $this->useCase->execute($token, 'John', 'password');
 
@@ -106,6 +114,7 @@ class RegisterUserTest extends TestCase
 
         $this->users->shouldNotReceive('create');
         $this->invitations->shouldNotReceive('markAsAccepted');
+        $this->auditLogger->shouldNotReceive('logUserRegistered');
 
         $result = $this->useCase->execute($token, 'John', 'password');
 
@@ -127,6 +136,7 @@ class RegisterUserTest extends TestCase
 
         $this->users->shouldNotReceive('create');
         $this->invitations->shouldNotReceive('markAsAccepted');
+        $this->auditLogger->shouldNotReceive('logUserRegistered');
 
         $result = $this->useCase->execute($token, 'John', 'password');
 

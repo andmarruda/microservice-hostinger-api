@@ -22,9 +22,11 @@ class UserController extends Controller
         ]);
 
         $result = $this->registerUser->execute(
-            $validated['token'],
-            $validated['name'],
-            $validated['password'],
+            token: $validated['token'],
+            name: $validated['name'],
+            password: $validated['password'],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
         );
 
         if (!$result->success) {

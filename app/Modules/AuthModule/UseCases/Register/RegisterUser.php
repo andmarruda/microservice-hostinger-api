@@ -4,15 +4,17 @@ namespace App\Modules\AuthModule\UseCases\Register;
 
 use App\Modules\AuthModule\Ports\Repositories\InvitationRepositoryInterface;
 use App\Modules\AuthModule\Ports\Repositories\UserRepositoryInterface;
+use App\Modules\AuthModule\Ports\Services\AuditLoggerInterface;
 
 class RegisterUser
 {
     public function __construct(
         private InvitationRepositoryInterface $invitations,
         private UserRepositoryInterface $users,
+        private AuditLoggerInterface $auditLogger,
     ) {}
 
-    public function execute(string $token, string $name, string $password): RegisterUserResult
+    public function execute(string $token, string $name, string $password, ?string $ipAddress = null, ?string $userAgent = null): RegisterUserResult
     {
         $invitation = $this->invitations->findByToken($token);
 
@@ -20,11 +22,11 @@ class RegisterUser
             return RegisterUserResult::invitationNotFound();
         }
 
-        if ($invitation->accepted_at !== null) {
+        if ($invitation->isAccepted()) {
             return RegisterUserResult::invitationAlreadyUsed();
         }
 
-        if ($invitation->expires_at->isPast()) {
+        if ($invitation->isExpired()) {
             return RegisterUserResult::invitationExpired();
         }
 
@@ -35,6 +37,8 @@ class RegisterUser
         ]);
 
         $this->invitations->markAsAccepted($invitation);
+
+        $this->auditLogger->logUserRegistered($user, $invitation, $ipAddress, $userAgent);
 
         return RegisterUserResult::success($user);
     }

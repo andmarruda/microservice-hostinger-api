@@ -106,4 +106,24 @@ class UserControllerTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['password']);
     }
+
+    public function test_register_creates_audit_log(): void
+    {
+        $invitation = Invitation::factory()->create([
+            'email' => 'newuser@example.com',
+        ]);
+
+        $this->postJson('/users/register', [
+            'token' => $invitation->token,
+            'name' => 'New User',
+            'password' => 'SecurePass123!',
+            'password_confirmation' => 'SecurePass123!',
+        ]);
+
+        $this->assertDatabaseHas('auth_audit_logs', [
+            'action' => 'user_registered',
+            'target_email' => 'newuser@example.com',
+            'invitation_id' => $invitation->id,
+        ]);
+    }
 }

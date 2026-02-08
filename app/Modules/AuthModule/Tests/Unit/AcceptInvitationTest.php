@@ -4,6 +4,7 @@ namespace App\Modules\AuthModule\Tests\Unit;
 
 use App\Modules\AuthModule\Models\Invitation;
 use App\Modules\AuthModule\Ports\Repositories\InvitationRepositoryInterface;
+use App\Modules\AuthModule\Ports\Services\AuditLoggerInterface;
 use App\Modules\AuthModule\UseCases\AcceptInvitation\AcceptInvitation;
 use Carbon\Carbon;
 use Mockery;
@@ -13,6 +14,7 @@ use Tests\TestCase;
 class AcceptInvitationTest extends TestCase
 {
     private MockInterface $invitations;
+    private MockInterface $auditLogger;
     private AcceptInvitation $useCase;
 
     protected function setUp(): void
@@ -20,7 +22,8 @@ class AcceptInvitationTest extends TestCase
         parent::setUp();
 
         $this->invitations = Mockery::mock(InvitationRepositoryInterface::class);
-        $this->useCase = new AcceptInvitation($this->invitations);
+        $this->auditLogger = Mockery::mock(AuditLoggerInterface::class);
+        $this->useCase = new AcceptInvitation($this->invitations, $this->auditLogger);
     }
 
     protected function tearDown(): void
@@ -45,6 +48,10 @@ class AcceptInvitationTest extends TestCase
             ->with($invitation)
             ->once();
 
+        $this->auditLogger
+            ->shouldReceive('logInvitationAccepted')
+            ->once();
+
         $result = $this->useCase->execute($token);
 
         $this->assertTrue($result->success);
@@ -63,6 +70,7 @@ class AcceptInvitationTest extends TestCase
             ->andReturn(null);
 
         $this->invitations->shouldNotReceive('markAsAccepted');
+        $this->auditLogger->shouldNotReceive('logInvitationAccepted');
 
         $result = $this->useCase->execute($token);
 
@@ -71,7 +79,7 @@ class AcceptInvitationTest extends TestCase
         $this->assertNull($result->invitation);
     }
 
-    public function test_cannot_accept_already_used_invitation(): void
+    public function test_accept_already_used_invitation_is_idempotent(): void
     {
         $token = 'used-token';
         $invitation = $this->createUsedInvitation();
@@ -82,13 +90,17 @@ class AcceptInvitationTest extends TestCase
             ->once()
             ->andReturn($invitation);
 
+        // Should NOT mark as accepted again
         $this->invitations->shouldNotReceive('markAsAccepted');
+        // Should NOT log again
+        $this->auditLogger->shouldNotReceive('logInvitationAccepted');
 
         $result = $this->useCase->execute($token);
 
-        $this->assertFalse($result->success);
-        $this->assertEquals('already_used', $result->error);
-        $this->assertNull($result->invitation);
+        // Idempotent: returns success
+        $this->assertTrue($result->success);
+        $this->assertNull($result->error);
+        $this->assertSame($invitation, $result->invitation);
     }
 
     public function test_cannot_accept_expired_invitation(): void
@@ -103,6 +115,7 @@ class AcceptInvitationTest extends TestCase
             ->andReturn($invitation);
 
         $this->invitations->shouldNotReceive('markAsAccepted');
+        $this->auditLogger->shouldNotReceive('logInvitationAccepted');
 
         $result = $this->useCase->execute($token);
 

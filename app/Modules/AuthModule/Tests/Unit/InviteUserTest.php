@@ -6,6 +6,9 @@ use App\Modules\AuthModule\Models\Invitation;
 use App\Modules\AuthModule\Models\User;
 use App\Modules\AuthModule\Ports\Repositories\InvitationRepositoryInterface;
 use App\Modules\AuthModule\Ports\Repositories\UserRepositoryInterface;
+use App\Modules\AuthModule\Ports\Services\AuditLoggerInterface;
+use App\Modules\AuthModule\Ports\Services\InvitationMailerInterface;
+use App\Modules\AuthModule\Ports\Services\TokenGeneratorInterface;
 use App\Modules\AuthModule\UseCases\InviteUser\InviteUser;
 use Mockery;
 use Mockery\MockInterface;
@@ -15,6 +18,9 @@ class InviteUserTest extends TestCase
 {
     private MockInterface $invitations;
     private MockInterface $users;
+    private MockInterface $tokenGenerator;
+    private MockInterface $mailer;
+    private MockInterface $auditLogger;
     private InviteUser $useCase;
 
     protected function setUp(): void
@@ -23,7 +29,17 @@ class InviteUserTest extends TestCase
 
         $this->invitations = Mockery::mock(InvitationRepositoryInterface::class);
         $this->users = Mockery::mock(UserRepositoryInterface::class);
-        $this->useCase = new InviteUser($this->invitations, $this->users);
+        $this->tokenGenerator = Mockery::mock(TokenGeneratorInterface::class);
+        $this->mailer = Mockery::mock(InvitationMailerInterface::class);
+        $this->auditLogger = Mockery::mock(AuditLoggerInterface::class);
+
+        $this->useCase = new InviteUser(
+            $this->invitations,
+            $this->users,
+            $this->tokenGenerator,
+            $this->mailer,
+            $this->auditLogger,
+        );
     }
 
     protected function tearDown(): void
@@ -36,6 +52,7 @@ class InviteUserTest extends TestCase
     {
         $manager = $this->createManager();
         $email = 'newuser@example.com';
+        $token = 'secure-token-123';
 
         $this->users
             ->shouldReceive('emailExists')
@@ -43,14 +60,29 @@ class InviteUserTest extends TestCase
             ->once()
             ->andReturn(false);
 
+        $this->tokenGenerator
+            ->shouldReceive('generate')
+            ->once()
+            ->andReturn($token);
+
         $expectedInvitation = new Invitation();
         $expectedInvitation->id = 1;
         $expectedInvitation->email = $email;
+        $expectedInvitation->token = $token;
 
         $this->invitations
             ->shouldReceive('create')
             ->once()
             ->andReturn($expectedInvitation);
+
+        $this->mailer
+            ->shouldReceive('sendInvitation')
+            ->with($expectedInvitation)
+            ->once();
+
+        $this->auditLogger
+            ->shouldReceive('logInvitationCreated')
+            ->once();
 
         $result = $this->useCase->execute($manager, $email);
 
@@ -59,13 +91,49 @@ class InviteUserTest extends TestCase
         $this->assertSame($expectedInvitation, $result->invitation);
     }
 
+    public function test_manager_can_invite_user_with_resource_scope(): void
+    {
+        $manager = $this->createManager();
+        $email = 'newuser@example.com';
+        $resourceScope = 'project:123';
+
+        $this->users
+            ->shouldReceive('emailExists')
+            ->andReturn(false);
+
+        $this->tokenGenerator
+            ->shouldReceive('generate')
+            ->andReturn('token');
+
+        $expectedInvitation = new Invitation();
+        $expectedInvitation->resource_scope = $resourceScope;
+
+        $this->invitations
+            ->shouldReceive('create')
+            ->withArgs(function ($data) use ($resourceScope) {
+                return $data['resource_scope'] === $resourceScope;
+            })
+            ->andReturn($expectedInvitation);
+
+        $this->mailer->shouldReceive('sendInvitation');
+        $this->auditLogger->shouldReceive('logInvitationCreated');
+
+        $result = $this->useCase->execute($manager, $email, $resourceScope);
+
+        $this->assertTrue($result->success);
+        $this->assertEquals($resourceScope, $result->invitation->resource_scope);
+    }
+
     public function test_non_manager_cannot_invite_user(): void
     {
         $user = $this->createRegularUser();
         $email = 'newuser@example.com';
 
         $this->users->shouldNotReceive('emailExists');
+        $this->tokenGenerator->shouldNotReceive('generate');
         $this->invitations->shouldNotReceive('create');
+        $this->mailer->shouldNotReceive('sendInvitation');
+        $this->auditLogger->shouldNotReceive('logInvitationCreated');
 
         $result = $this->useCase->execute($user, $email);
 
@@ -85,7 +153,10 @@ class InviteUserTest extends TestCase
             ->once()
             ->andReturn(true);
 
+        $this->tokenGenerator->shouldNotReceive('generate');
         $this->invitations->shouldNotReceive('create');
+        $this->mailer->shouldNotReceive('sendInvitation');
+        $this->auditLogger->shouldNotReceive('logInvitationCreated');
 
         $result = $this->useCase->execute($manager, $email);
 

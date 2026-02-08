@@ -23,9 +23,16 @@ class InvitationController extends Controller
 
         $validated = $request->validate([
             'email' => ['required', 'email'],
+            'resource_scope' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $result = $this->inviteUser->execute($request->user(), $validated['email']);
+        $result = $this->inviteUser->execute(
+            inviter: $request->user(),
+            email: $validated['email'],
+            resourceScope: $validated['resource_scope'] ?? null,
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
+        );
 
         if (!$result->success) {
             return match ($result->error) {
@@ -41,6 +48,7 @@ class InvitationController extends Controller
             'data' => [
                 'id' => $result->invitation->id,
                 'email' => $result->invitation->email,
+                'resource_scope' => $result->invitation->resource_scope,
                 'expires_at' => $result->invitation->expires_at,
             ],
         ], 201);
@@ -52,12 +60,15 @@ class InvitationController extends Controller
             'token' => ['required', 'string'],
         ]);
 
-        $result = $this->acceptInvitation->execute($validated['token']);
+        $result = $this->acceptInvitation->execute(
+            token: $validated['token'],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
+        );
 
         if (!$result->success) {
             return match ($result->error) {
                 'not_found' => response()->json(['message' => 'Invitation not found.'], 404),
-                'already_used' => response()->json(['message' => 'Invitation already used.'], 410),
                 'expired' => response()->json(['message' => 'Invitation expired.'], 410),
             };
         }
@@ -65,6 +76,7 @@ class InvitationController extends Controller
         return response()->json([
             'data' => [
                 'email' => $result->invitation->email,
+                'resource_scope' => $result->invitation->resource_scope,
                 'accepted_at' => $result->invitation->accepted_at,
             ],
         ]);
