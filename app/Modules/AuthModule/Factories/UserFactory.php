@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Modules\AuthModule\Models\User>
@@ -49,12 +50,15 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the user is a manager.
+     * Indicate that the user is a manager (has Manage.Invite.user permission).
      */
     public function manager(): static
     {
         return $this->state(fn (array $attributes) => [
             'is_manager' => true,
-        ]);
+        ])->afterCreating(function ($user) {
+            $permission = Permission::firstOrCreate(['name' => 'Manage.Invite.user', 'guard_name' => 'web']);
+            $user->givePermissionTo($permission);
+        });
     }
 }

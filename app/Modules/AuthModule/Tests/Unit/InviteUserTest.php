@@ -167,18 +167,18 @@ class InviteUserTest extends TestCase
 
     private function createManager(): User
     {
-        $user = new User();
+        $user = Mockery::mock(User::class)->makePartial();
         $user->id = 1;
-        $user->is_manager = true;
+        $user->shouldReceive('can')->with('Manage.Invite.user')->andReturn(true);
 
         return $user;
     }
 
     private function createRegularUser(): User
     {
-        $user = new User();
+        $user = Mockery::mock(User::class)->makePartial();
         $user->id = 2;
-        $user->is_manager = false;
+        $user->shouldReceive('can')->with('Manage.Invite.user')->andReturn(false);
 
         return $user;
     }

@@ -21,7 +21,7 @@ class InviteUser
 
     public function execute(User $inviter, string $email, ?string $resourceScope = null, ?string $ipAddress = null, ?string $userAgent = null): InviteUserResult
     {
-        if (!$inviter->isManager()) {
+        if (!$inviter->can('Manage.Invite.user')) {
             return InviteUserResult::forbidden();
         }
 
