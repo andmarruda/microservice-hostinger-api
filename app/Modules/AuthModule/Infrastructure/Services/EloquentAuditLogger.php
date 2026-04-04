@@ -63,4 +63,52 @@ class EloquentAuditLogger implements AuditLoggerInterface
             'created_at' => now(),
         ]);
     }
+
+    public function logLoginSucceeded(User $user, string $method, ?string $ipAddress = null, ?string $userAgent = null): void
+    {
+        AuthAuditLog::create([
+            'action' => 'login_succeeded',
+            'actor_id' => $user->id,
+            'actor_email' => $user->email,
+            'target_email' => null,
+            'invitation_id' => null,
+            'resource_scope' => null,
+            'metadata' => ['method' => $method],
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
+            'created_at' => now(),
+        ]);
+    }
+
+    public function logLoginFailed(string $email, ?string $ipAddress = null, ?string $userAgent = null): void
+    {
+        AuthAuditLog::create([
+            'action' => 'login_failed',
+            'actor_id' => null,
+            'actor_email' => $email,
+            'target_email' => null,
+            'invitation_id' => null,
+            'resource_scope' => null,
+            'metadata' => [],
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
+            'created_at' => now(),
+        ]);
+    }
+
+    public function logLogout(User $user, string $method, ?string $ipAddress = null, ?string $userAgent = null): void
+    {
+        AuthAuditLog::create([
+            'action' => 'logout',
+            'actor_id' => $user->id,
+            'actor_email' => $user->email,
+            'target_email' => null,
+            'invitation_id' => null,
+            'resource_scope' => null,
+            'metadata' => ['method' => $method],
+            'ip_address' => $ipAddress,
+            'user_agent' => $userAgent,
+            'created_at' => now(),
+        ]);
+    }
 }
