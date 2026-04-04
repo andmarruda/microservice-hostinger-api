@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('infra_audit_logs', function (Blueprint $table) {
+            $table->id();
+            $table->string('action');
+            $table->foreignId('actor_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('actor_email')->nullable();
+            $table->string('vps_id');
+            $table->string('resource_type');
+            $table->string('resource_id')->nullable();
+            $table->string('correlation_id');
+            $table->string('outcome');
+            $table->json('metadata')->nullable();
+            $table->string('ip_address')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->timestamp('created_at');
+
+            $table->index('correlation_id');
+            $table->index(['action', 'created_at']);
+            $table->index('actor_id');
+            $table->index('vps_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('infra_audit_logs');
+    }
+};
