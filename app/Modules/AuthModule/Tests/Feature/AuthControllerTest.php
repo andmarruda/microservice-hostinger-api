@@ -17,7 +17,7 @@ class AuthControllerTest extends TestCase
             'password' => bcrypt('secret'),
         ]);
 
-        $response = $this->postJson('/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
             'password' => 'secret',
         ]);
@@ -33,7 +33,7 @@ class AuthControllerTest extends TestCase
             'password' => bcrypt('secret'),
         ]);
 
-        $response = $this->postJson('/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
             'password' => 'wrongpassword',
         ]);
@@ -43,7 +43,7 @@ class AuthControllerTest extends TestCase
 
     public function test_login_fails_with_unknown_email(): void
     {
-        $response = $this->postJson('/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'nobody@example.com',
             'password' => 'password',
         ]);
@@ -58,7 +58,7 @@ class AuthControllerTest extends TestCase
             'password' => bcrypt('secret'),
         ]);
 
-        $response = $this->postJson('/auth/login', [
+        $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
             'password' => 'secret',
             'token_mode' => true,
@@ -70,7 +70,7 @@ class AuthControllerTest extends TestCase
 
     public function test_login_requires_email_and_password(): void
     {
-        $response = $this->postJson('/auth/login', []);
+        $response = $this->postJson('/api/v1/auth/login', []);
 
         $response->assertStatus(422);
     }
@@ -79,14 +79,14 @@ class AuthControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson('/auth/logout');
+        $response = $this->actingAs($user)->postJson('/api/v1/auth/logout');
 
         $response->assertStatus(200);
     }
 
     public function test_unauthenticated_user_cannot_logout(): void
     {
-        $response = $this->postJson('/auth/logout');
+        $response = $this->postJson('/api/v1/auth/logout');
 
         $response->assertStatus(401);
     }
@@ -95,7 +95,7 @@ class AuthControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->getJson('/auth/me');
+        $response = $this->actingAs($user)->getJson('/api/v1/auth/me');
 
         $response->assertStatus(200)
             ->assertJsonPath('data.id', $user->id)
@@ -104,7 +104,7 @@ class AuthControllerTest extends TestCase
 
     public function test_me_requires_authentication(): void
     {
-        $response = $this->getJson('/auth/me');
+        $response = $this->getJson('/api/v1/auth/me');
 
         $response->assertStatus(401);
     }
@@ -116,7 +116,7 @@ class AuthControllerTest extends TestCase
             'password' => bcrypt('secret'),
         ]);
 
-        $this->postJson('/auth/login', [
+        $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
             'password' => 'secret',
         ]);
@@ -129,7 +129,7 @@ class AuthControllerTest extends TestCase
 
     public function test_login_creates_audit_log_on_failure(): void
     {
-        $this->postJson('/auth/login', [
+        $this->postJson('/api/v1/auth/login', [
             'email' => 'nobody@example.com',
             'password' => 'wrong',
         ]);
@@ -144,7 +144,7 @@ class AuthControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user)->postJson('/auth/logout');
+        $this->actingAs($user)->postJson('/api/v1/auth/logout');
 
         $this->assertDatabaseHas('auth_audit_logs', [
             'action' => 'logout',

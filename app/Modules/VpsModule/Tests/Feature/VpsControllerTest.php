@@ -29,7 +29,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/start");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/start");
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data' => ['vps_id', 'correlation_id']]);
@@ -39,7 +39,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/stop");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/stop");
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data' => ['vps_id', 'correlation_id']]);
@@ -49,7 +49,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/reboot");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/reboot");
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data' => ['vps_id', 'correlation_id']]);
@@ -57,21 +57,21 @@ class VpsControllerTest extends TestCase
 
     public function test_unauthenticated_user_cannot_start_vps(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/start");
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/start");
 
         $response->assertStatus(401);
     }
 
     public function test_unauthenticated_user_cannot_stop_vps(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/stop");
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/stop");
 
         $response->assertStatus(401);
     }
 
     public function test_unauthenticated_user_cannot_reboot_vps(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/reboot");
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/reboot");
 
         $response->assertStatus(401);
     }
@@ -80,7 +80,7 @@ class VpsControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/start");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/start");
 
         $response->assertStatus(403);
     }
@@ -89,7 +89,7 @@ class VpsControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/stop");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/stop");
 
         $response->assertStatus(403);
     }
@@ -98,7 +98,7 @@ class VpsControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/reboot");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/reboot");
 
         $response->assertStatus(403);
     }
@@ -107,7 +107,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/start");
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/start");
 
         $this->assertDatabaseHas('infra_audit_logs', [
             'action' => 'vps_start',
@@ -122,7 +122,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/stop");
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/stop");
 
         $this->assertDatabaseHas('infra_audit_logs', [
             'action' => 'vps_stop',
@@ -136,7 +136,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/reboot");
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/reboot");
 
         $this->assertDatabaseHas('infra_audit_logs', [
             'action' => 'vps_reboot',
@@ -150,7 +150,7 @@ class VpsControllerTest extends TestCase
     {
         $user = $this->userWithAccess();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/start");
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/start");
 
         $correlationId = $response->json('data.correlation_id');
         $this->assertNotNull($correlationId);

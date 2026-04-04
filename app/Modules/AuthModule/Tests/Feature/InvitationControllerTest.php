@@ -24,7 +24,7 @@ class InvitationControllerTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $response = $this->actingAs($manager)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'newuser@example.com',
             ]);
 
@@ -48,7 +48,7 @@ class InvitationControllerTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $response = $this->actingAs($manager)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'newuser@example.com',
                 'resource_scope' => 'project:123',
             ]);
@@ -67,7 +67,7 @@ class InvitationControllerTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'newuser@example.com',
             ]);
 
@@ -80,7 +80,7 @@ class InvitationControllerTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $response = $this->actingAs($manager)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'invalid-email',
             ]);
 
@@ -94,7 +94,7 @@ class InvitationControllerTest extends TestCase
         User::factory()->create(['email' => 'existing@example.com']);
 
         $response = $this->actingAs($manager)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'existing@example.com',
             ]);
 
@@ -106,7 +106,7 @@ class InvitationControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->create();
 
-        $response = $this->postJson('/invitations/accept', [
+        $response = $this->postJson('/api/v1/invitations/accept', [
             'token' => $invitation->token,
         ]);
 
@@ -127,7 +127,7 @@ class InvitationControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->expired()->create();
 
-        $response = $this->postJson('/invitations/accept', [
+        $response = $this->postJson('/api/v1/invitations/accept', [
             'token' => $invitation->token,
         ]);
 
@@ -138,7 +138,7 @@ class InvitationControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->accepted()->create();
 
-        $response = $this->postJson('/invitations/accept', [
+        $response = $this->postJson('/api/v1/invitations/accept', [
             'token' => $invitation->token,
         ]);
 
@@ -151,7 +151,7 @@ class InvitationControllerTest extends TestCase
 
     public function test_cannot_accept_invalid_token(): void
     {
-        $response = $this->postJson('/invitations/accept', [
+        $response = $this->postJson('/api/v1/invitations/accept', [
             'token' => 'invalid-token-12345',
         ]);
 
@@ -160,7 +160,7 @@ class InvitationControllerTest extends TestCase
 
     public function test_guest_cannot_create_invitation(): void
     {
-        $response = $this->postJson('/invitations/create', [
+        $response = $this->postJson('/api/v1/invitations/create', [
             'email' => 'newuser@example.com',
         ]);
 
@@ -172,7 +172,7 @@ class InvitationControllerTest extends TestCase
         $manager = User::factory()->manager()->create();
 
         $this->actingAs($manager)
-            ->postJson('/invitations/create', [
+            ->postJson('/api/v1/invitations/create', [
                 'email' => 'newuser@example.com',
             ]);
 
@@ -187,7 +187,7 @@ class InvitationControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->create();
 
-        $this->postJson('/invitations/accept', [
+        $this->postJson('/api/v1/invitations/accept', [
             'token' => $invitation->token,
         ]);
 

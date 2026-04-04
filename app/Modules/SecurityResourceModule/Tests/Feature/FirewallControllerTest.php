@@ -28,7 +28,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = $this->userWithFirewallPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/firewall/rules", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/firewall/rules", [
             'protocol' => 'tcp',
             'port' => 80,
         ]);
@@ -41,7 +41,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = $this->userWithFirewallPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/firewall/rules/{$this->ruleId}", [
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/firewall/rules/{$this->ruleId}", [
             'confirm_destructive' => true,
         ]);
 
@@ -51,7 +51,7 @@ class FirewallControllerTest extends TestCase
 
     public function test_unauthenticated_user_cannot_add_firewall_rule(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/firewall/rules", [
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/firewall/rules", [
             'protocol' => 'tcp',
             'port' => 80,
         ]);
@@ -63,7 +63,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/firewall/rules", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/firewall/rules", [
             'protocol' => 'tcp',
             'port' => 80,
         ]);
@@ -75,7 +75,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = $this->userWithFirewallPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/firewall/rules", []);
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/firewall/rules", []);
 
         $response->assertStatus(422);
     }
@@ -84,7 +84,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = $this->userWithFirewallPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/firewall/rules/{$this->ruleId}", []);
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/firewall/rules/{$this->ruleId}", []);
 
         $response->assertStatus(422);
     }
@@ -93,7 +93,7 @@ class FirewallControllerTest extends TestCase
     {
         $user = $this->userWithFirewallPermission();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/firewall/rules", [
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/firewall/rules", [
             'protocol' => 'tcp',
             'port' => 80,
         ]);

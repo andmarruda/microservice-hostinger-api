@@ -29,7 +29,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = $this->userWithSshKeyPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/ssh-keys", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/ssh-keys", [
             'key_name' => 'my-laptop',
             'public_key' => $this->validPublicKey,
         ]);
@@ -42,7 +42,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = $this->userWithSshKeyPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/ssh-keys/{$this->keyId}", [
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/ssh-keys/{$this->keyId}", [
             'confirm_destructive' => true,
         ]);
 
@@ -52,7 +52,7 @@ class SshKeyControllerTest extends TestCase
 
     public function test_unauthenticated_user_cannot_add_ssh_key(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/ssh-keys", [
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/ssh-keys", [
             'key_name' => 'my-laptop',
             'public_key' => $this->validPublicKey,
         ]);
@@ -64,7 +64,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/ssh-keys", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/ssh-keys", [
             'key_name' => 'my-laptop',
             'public_key' => $this->validPublicKey,
         ]);
@@ -76,7 +76,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = $this->userWithSshKeyPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/ssh-keys", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/ssh-keys", [
             'key_name' => 'my-laptop',
         ]);
 
@@ -87,7 +87,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = $this->userWithSshKeyPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/ssh-keys/{$this->keyId}", []);
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/ssh-keys/{$this->keyId}", []);
 
         $response->assertStatus(422);
     }
@@ -96,7 +96,7 @@ class SshKeyControllerTest extends TestCase
     {
         $user = $this->userWithSshKeyPermission();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/ssh-keys", [
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/ssh-keys", [
             'key_name' => 'my-laptop',
             'public_key' => $this->validPublicKey,
         ]);

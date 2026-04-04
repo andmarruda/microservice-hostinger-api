@@ -17,7 +17,7 @@ class UserControllerTest extends TestCase
             'email' => 'newuser@example.com',
         ]);
 
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'token' => $invitation->token,
             'name' => 'New User',
             'password' => 'SecurePass123!',
@@ -42,7 +42,7 @@ class UserControllerTest extends TestCase
 
     public function test_cannot_register_without_invitation(): void
     {
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'name' => 'New User',
             'email' => 'newuser@example.com',
             'password' => 'SecurePass123!',
@@ -55,7 +55,7 @@ class UserControllerTest extends TestCase
 
     public function test_cannot_register_with_invalid_token(): void
     {
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'token' => 'invalid-token-12345',
             'name' => 'New User',
             'password' => 'SecurePass123!',
@@ -69,7 +69,7 @@ class UserControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->expired()->create();
 
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'token' => $invitation->token,
             'name' => 'New User',
             'password' => 'SecurePass123!',
@@ -83,7 +83,7 @@ class UserControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->accepted()->create();
 
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'token' => $invitation->token,
             'name' => 'New User',
             'password' => 'SecurePass123!',
@@ -97,7 +97,7 @@ class UserControllerTest extends TestCase
     {
         $invitation = Invitation::factory()->create();
 
-        $response = $this->postJson('/users/register', [
+        $response = $this->postJson('/api/v1/users/register', [
             'token' => $invitation->token,
             'name' => 'New User',
             'password' => 'SecurePass123!',
@@ -113,7 +113,7 @@ class UserControllerTest extends TestCase
             'email' => 'newuser@example.com',
         ]);
 
-        $this->postJson('/users/register', [
+        $this->postJson('/api/v1/users/register', [
             'token' => $invitation->token,
             'name' => 'New User',
             'password' => 'SecurePass123!',

@@ -28,7 +28,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = $this->userWithSnapshotPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/snapshots", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/snapshots", [
             'label' => 'pre-deploy-backup',
         ]);
 
@@ -40,7 +40,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = $this->userWithSnapshotPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/snapshots/{$this->snapshotId}", [
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/snapshots/{$this->snapshotId}", [
             'confirm_destructive' => true,
         ]);
 
@@ -50,7 +50,7 @@ class SnapshotControllerTest extends TestCase
 
     public function test_unauthenticated_user_cannot_create_snapshot(): void
     {
-        $response = $this->postJson("/vps/{$this->vpsId}/snapshots", [
+        $response = $this->postJson("/api/v1/vps/{$this->vpsId}/snapshots", [
             'label' => 'pre-deploy-backup',
         ]);
 
@@ -61,7 +61,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/snapshots", [
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/snapshots", [
             'label' => 'pre-deploy-backup',
         ]);
 
@@ -72,7 +72,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = $this->userWithSnapshotPermission();
 
-        $response = $this->actingAs($user)->postJson("/vps/{$this->vpsId}/snapshots", []);
+        $response = $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/snapshots", []);
 
         $response->assertStatus(422);
     }
@@ -81,7 +81,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = $this->userWithSnapshotPermission();
 
-        $response = $this->actingAs($user)->deleteJson("/vps/{$this->vpsId}/snapshots/{$this->snapshotId}", []);
+        $response = $this->actingAs($user)->deleteJson("/api/v1/vps/{$this->vpsId}/snapshots/{$this->snapshotId}", []);
 
         $response->assertStatus(422);
     }
@@ -90,7 +90,7 @@ class SnapshotControllerTest extends TestCase
     {
         $user = $this->userWithSnapshotPermission();
 
-        $this->actingAs($user)->postJson("/vps/{$this->vpsId}/snapshots", [
+        $this->actingAs($user)->postJson("/api/v1/vps/{$this->vpsId}/snapshots", [
             'label' => 'pre-deploy-backup',
         ]);
 
