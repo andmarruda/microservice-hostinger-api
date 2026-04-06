@@ -3,6 +3,8 @@
 namespace App\Modules\SecurityResourceModule\UseCases\CreateSnapshot;
 
 use App\Infrastructure\Audit\Ports\InfraAuditLoggerInterface;
+use App\Modules\PolicyModule\PolicyActions;
+use App\Modules\PolicyModule\Ports\Services\PolicyEnforcerInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiClientInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\SecurityPermissionInterface;
 use Illuminate\Support\Str;
@@ -13,12 +15,33 @@ class CreateSnapshot
         private SecurityPermissionInterface $permissions,
         private HostingerSecurityApiClientInterface $hostinger,
         private InfraAuditLoggerInterface $auditLogger,
+        private PolicyEnforcerInterface $policyEnforcer,
     ) {}
 
     public function execute(int $userId, string $vpsId, string $label, ?string $actorEmail = null, ?string $ipAddress = null, ?string $userAgent = null): CreateSnapshotResult
     {
         if (!$this->permissions->canManageSnapshots($userId, $vpsId)) {
             return CreateSnapshotResult::forbidden();
+        }
+
+        $policy = $this->policyEnforcer->evaluate(PolicyActions::SNAPSHOT_CREATE, $userId, $vpsId);
+
+        if (!$policy->allowed) {
+            $this->auditLogger->logAction(
+                action: 'snapshot_create',
+                actorId: $userId,
+                actorEmail: $actorEmail,
+                vpsId: $vpsId,
+                resourceType: 'snapshot',
+                resourceId: null,
+                correlationId: (string) Str::uuid(),
+                outcome: 'policy_denied',
+                metadata: ['reason' => $policy->reason],
+                ipAddress: $ipAddress,
+                userAgent: $userAgent,
+            );
+
+            return CreateSnapshotResult::policyDenied($policy->reason);
         }
 
         $correlationId = (string) Str::uuid();

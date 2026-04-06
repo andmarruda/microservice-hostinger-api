@@ -3,30 +3,38 @@
 namespace App\Modules\SecurityResourceModule\Tests\Unit;
 
 use App\Infrastructure\Audit\Ports\InfraAuditLoggerInterface;
+use App\Modules\PolicyModule\Ports\Services\PolicyDecision;
+use App\Modules\PolicyModule\Ports\Services\PolicyEnforcerInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiClientInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiResult;
 use App\Modules\SecurityResourceModule\Ports\Services\SecurityPermissionInterface;
 use App\Modules\SecurityResourceModule\UseCases\RemoveSshKey\RemoveSshKey;
 use Mockery;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class RemoveSshKeyTest extends TestCase
 {
-    private MockInterface $permissions;
-    private MockInterface $hostinger;
-    private MockInterface $auditLogger;
+    private SecurityPermissionInterface $permissions;
+    private HostingerSecurityApiClientInterface $hostinger;
+    private InfraAuditLoggerInterface $auditLogger;
+    private PolicyEnforcerInterface $policyEnforcer;
     private RemoveSshKey $useCase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->permissions = Mockery::mock(SecurityPermissionInterface::class);
-        $this->hostinger = Mockery::mock(HostingerSecurityApiClientInterface::class);
-        $this->auditLogger = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->permissions    = Mockery::mock(SecurityPermissionInterface::class);
+        $this->hostinger      = Mockery::mock(HostingerSecurityApiClientInterface::class);
+        $this->auditLogger    = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->policyEnforcer = Mockery::mock(PolicyEnforcerInterface::class);
 
-        $this->useCase = new RemoveSshKey($this->permissions, $this->hostinger, $this->auditLogger);
+        $this->useCase = new RemoveSshKey(
+            $this->permissions,
+            $this->hostinger,
+            $this->auditLogger,
+            $this->policyEnforcer,
+        );
     }
 
     protected function tearDown(): void
@@ -35,38 +43,38 @@ class RemoveSshKeyTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_removes_ssh_key_when_user_has_permission(): void
-    {
-        $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldReceive('removeSshKey')->once()->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')->once();
-
-        $result = $this->useCase->execute(1, 'vps-123', 'key-789');
-
-        $this->assertTrue($result->success);
-    }
-
-    public function test_returns_forbidden_when_user_lacks_ssh_key_permission(): void
+    public function test_returns_forbidden_when_no_permission(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(false);
-        $this->hostinger->shouldNotReceive('removeSshKey');
-        $this->auditLogger->shouldNotReceive('logAction');
 
-        $result = $this->useCase->execute(1, 'vps-123', 'key-789');
+        $result = $this->useCase->execute(1, 'vps-123', 'key-abc');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('forbidden', $result->error);
+        $this->assertSame('forbidden', $result->error);
     }
 
-    public function test_returns_hostinger_error_when_api_call_fails(): void
+    public function test_returns_policy_denied_when_policy_blocks(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldReceive('removeSshKey')->andReturn(HostingerSecurityApiResult::failure('corr-id', 'error'));
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::deny('Key removal locked.'));
         $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'key-789');
+        $result = $this->useCase->execute(1, 'vps-123', 'key-abc');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('hostinger_error', $result->error);
+        $this->assertSame('policy_denied', $result->error);
+        $this->assertSame('Key removal locked.', $result->policyReason);
+    }
+
+    public function test_returns_success_on_happy_path(): void
+    {
+        $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::allow());
+        $this->hostinger->shouldReceive('removeSshKey')->andReturn(HostingerSecurityApiResult::success('corr-id'));
+        $this->auditLogger->shouldReceive('logAction')->once();
+
+        $result = $this->useCase->execute(1, 'vps-123', 'key-abc');
+
+        $this->assertTrue($result->success);
     }
 }

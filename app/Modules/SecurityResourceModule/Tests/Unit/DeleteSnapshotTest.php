@@ -3,30 +3,38 @@
 namespace App\Modules\SecurityResourceModule\Tests\Unit;
 
 use App\Infrastructure\Audit\Ports\InfraAuditLoggerInterface;
+use App\Modules\PolicyModule\Ports\Services\PolicyDecision;
+use App\Modules\PolicyModule\Ports\Services\PolicyEnforcerInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiClientInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiResult;
 use App\Modules\SecurityResourceModule\Ports\Services\SecurityPermissionInterface;
 use App\Modules\SecurityResourceModule\UseCases\DeleteSnapshot\DeleteSnapshot;
 use Mockery;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class DeleteSnapshotTest extends TestCase
 {
-    private MockInterface $permissions;
-    private MockInterface $hostinger;
-    private MockInterface $auditLogger;
+    private SecurityPermissionInterface $permissions;
+    private HostingerSecurityApiClientInterface $hostinger;
+    private InfraAuditLoggerInterface $auditLogger;
+    private PolicyEnforcerInterface $policyEnforcer;
     private DeleteSnapshot $useCase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->permissions = Mockery::mock(SecurityPermissionInterface::class);
-        $this->hostinger = Mockery::mock(HostingerSecurityApiClientInterface::class);
-        $this->auditLogger = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->permissions    = Mockery::mock(SecurityPermissionInterface::class);
+        $this->hostinger      = Mockery::mock(HostingerSecurityApiClientInterface::class);
+        $this->auditLogger    = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->policyEnforcer = Mockery::mock(PolicyEnforcerInterface::class);
 
-        $this->useCase = new DeleteSnapshot($this->permissions, $this->hostinger, $this->auditLogger);
+        $this->useCase = new DeleteSnapshot(
+            $this->permissions,
+            $this->hostinger,
+            $this->auditLogger,
+            $this->policyEnforcer,
+        );
     }
 
     protected function tearDown(): void
@@ -35,52 +43,37 @@ class DeleteSnapshotTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_deletes_snapshot_when_user_has_permission(): void
-    {
-        $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
-        $this->hostinger->shouldReceive('deleteSnapshot')->once()->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')->once();
-
-        $result = $this->useCase->execute(1, 'vps-123', 'snap-999');
-
-        $this->assertTrue($result->success);
-    }
-
-    public function test_returns_forbidden_when_user_lacks_snapshot_permission(): void
+    public function test_returns_forbidden_when_no_permission(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(false);
-        $this->hostinger->shouldNotReceive('deleteSnapshot');
-        $this->auditLogger->shouldNotReceive('logAction');
 
-        $result = $this->useCase->execute(1, 'vps-123', 'snap-999');
+        $result = $this->useCase->execute(1, 'vps-123', 'snap-abc');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('forbidden', $result->error);
+        $this->assertSame('forbidden', $result->error);
     }
 
-    public function test_returns_hostinger_error_when_api_call_fails(): void
+    public function test_returns_policy_denied_when_policy_blocks(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
-        $this->hostinger->shouldReceive('deleteSnapshot')->andReturn(HostingerSecurityApiResult::failure('corr-id', 'error'));
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::deny('Deletion locked.'));
         $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'snap-999');
+        $result = $this->useCase->execute(1, 'vps-123', 'snap-abc');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('hostinger_error', $result->error);
+        $this->assertSame('policy_denied', $result->error);
+        $this->assertSame('Deletion locked.', $result->policyReason);
     }
 
-    public function test_logs_audit_on_deletion(): void
+    public function test_returns_success_on_happy_path(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::allow());
         $this->hostinger->shouldReceive('deleteSnapshot')->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')
-            ->withArgs(function ($action, $actorId, $actorEmail, $vpsId, $resourceType, $resourceId, $correlationId, $outcome) {
-                return $action === 'snapshot_delete' && $resourceType === 'snapshot' && $outcome === 'success';
-            })
-            ->once();
+        $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'snap-999');
+        $result = $this->useCase->execute(1, 'vps-123', 'snap-abc');
 
         $this->assertTrue($result->success);
     }

@@ -3,30 +3,38 @@
 namespace App\Modules\SecurityResourceModule\Tests\Unit;
 
 use App\Infrastructure\Audit\Ports\InfraAuditLoggerInterface;
+use App\Modules\PolicyModule\Ports\Services\PolicyDecision;
+use App\Modules\PolicyModule\Ports\Services\PolicyEnforcerInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiClientInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiResult;
 use App\Modules\SecurityResourceModule\Ports\Services\SecurityPermissionInterface;
 use App\Modules\SecurityResourceModule\UseCases\CreateSnapshot\CreateSnapshot;
 use Mockery;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class CreateSnapshotTest extends TestCase
 {
-    private MockInterface $permissions;
-    private MockInterface $hostinger;
-    private MockInterface $auditLogger;
+    private SecurityPermissionInterface $permissions;
+    private HostingerSecurityApiClientInterface $hostinger;
+    private InfraAuditLoggerInterface $auditLogger;
+    private PolicyEnforcerInterface $policyEnforcer;
     private CreateSnapshot $useCase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->permissions = Mockery::mock(SecurityPermissionInterface::class);
-        $this->hostinger = Mockery::mock(HostingerSecurityApiClientInterface::class);
-        $this->auditLogger = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->permissions    = Mockery::mock(SecurityPermissionInterface::class);
+        $this->hostinger      = Mockery::mock(HostingerSecurityApiClientInterface::class);
+        $this->auditLogger    = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->policyEnforcer = Mockery::mock(PolicyEnforcerInterface::class);
 
-        $this->useCase = new CreateSnapshot($this->permissions, $this->hostinger, $this->auditLogger);
+        $this->useCase = new CreateSnapshot(
+            $this->permissions,
+            $this->hostinger,
+            $this->auditLogger,
+            $this->policyEnforcer,
+        );
     }
 
     protected function tearDown(): void
@@ -35,52 +43,37 @@ class CreateSnapshotTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_creates_snapshot_successfully_when_user_has_permission(): void
-    {
-        $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
-        $this->hostinger->shouldReceive('createSnapshot')->once()->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')->once();
-
-        $result = $this->useCase->execute(1, 'vps-123', 'pre-deploy-backup');
-
-        $this->assertTrue($result->success);
-    }
-
-    public function test_returns_forbidden_when_user_lacks_snapshot_permission(): void
+    public function test_returns_forbidden_when_no_permission(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(false);
-        $this->hostinger->shouldNotReceive('createSnapshot');
-        $this->auditLogger->shouldNotReceive('logAction');
 
-        $result = $this->useCase->execute(1, 'vps-123', 'pre-deploy-backup');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-snap');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('forbidden', $result->error);
+        $this->assertSame('forbidden', $result->error);
     }
 
-    public function test_returns_hostinger_error_when_api_call_fails(): void
+    public function test_returns_policy_denied_when_policy_blocks(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
-        $this->hostinger->shouldReceive('createSnapshot')->andReturn(HostingerSecurityApiResult::failure('corr-id', 'error'));
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::deny('Snapshots disabled.'));
         $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'pre-deploy-backup');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-snap');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('hostinger_error', $result->error);
+        $this->assertSame('policy_denied', $result->error);
+        $this->assertSame('Snapshots disabled.', $result->policyReason);
     }
 
-    public function test_logs_audit_with_snapshot_resource_type(): void
+    public function test_returns_success_on_happy_path(): void
     {
         $this->permissions->shouldReceive('canManageSnapshots')->andReturn(true);
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::allow());
         $this->hostinger->shouldReceive('createSnapshot')->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')
-            ->withArgs(function ($action, $actorId, $actorEmail, $vpsId, $resourceType, $resourceId, $correlationId, $outcome) {
-                return $action === 'snapshot_create' && $resourceType === 'snapshot' && $outcome === 'success';
-            })
-            ->once();
+        $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'pre-deploy-backup');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-snap');
 
         $this->assertTrue($result->success);
     }

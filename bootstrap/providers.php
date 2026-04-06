@@ -8,4 +8,5 @@ return [
     App\Modules\VpsModule\VpsModuleServiceProvider::class,
     App\Modules\SecurityResourceModule\SecurityResourceModuleServiceProvider::class,
     App\Modules\HostingerProxyModule\HostingerProxyModuleServiceProvider::class,
+    App\Modules\PolicyModule\PolicyModuleServiceProvider::class,
 ];

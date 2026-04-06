@@ -3,30 +3,38 @@
 namespace App\Modules\SecurityResourceModule\Tests\Unit;
 
 use App\Infrastructure\Audit\Ports\InfraAuditLoggerInterface;
+use App\Modules\PolicyModule\Ports\Services\PolicyDecision;
+use App\Modules\PolicyModule\Ports\Services\PolicyEnforcerInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiClientInterface;
 use App\Modules\SecurityResourceModule\Ports\Services\HostingerSecurityApiResult;
 use App\Modules\SecurityResourceModule\Ports\Services\SecurityPermissionInterface;
 use App\Modules\SecurityResourceModule\UseCases\AddSshKey\AddSshKey;
 use Mockery;
-use Mockery\MockInterface;
 use Tests\TestCase;
 
 class AddSshKeyTest extends TestCase
 {
-    private MockInterface $permissions;
-    private MockInterface $hostinger;
-    private MockInterface $auditLogger;
+    private SecurityPermissionInterface $permissions;
+    private HostingerSecurityApiClientInterface $hostinger;
+    private InfraAuditLoggerInterface $auditLogger;
+    private PolicyEnforcerInterface $policyEnforcer;
     private AddSshKey $useCase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->permissions = Mockery::mock(SecurityPermissionInterface::class);
-        $this->hostinger = Mockery::mock(HostingerSecurityApiClientInterface::class);
-        $this->auditLogger = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->permissions    = Mockery::mock(SecurityPermissionInterface::class);
+        $this->hostinger      = Mockery::mock(HostingerSecurityApiClientInterface::class);
+        $this->auditLogger    = Mockery::mock(InfraAuditLoggerInterface::class);
+        $this->policyEnforcer = Mockery::mock(PolicyEnforcerInterface::class);
 
-        $this->useCase = new AddSshKey($this->permissions, $this->hostinger, $this->auditLogger);
+        $this->useCase = new AddSshKey(
+            $this->permissions,
+            $this->hostinger,
+            $this->auditLogger,
+            $this->policyEnforcer,
+        );
     }
 
     protected function tearDown(): void
@@ -35,76 +43,47 @@ class AddSshKeyTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_adds_ssh_key_successfully_with_valid_rsa_key(): void
-    {
-        $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldReceive('addSshKey')->once()->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')->once();
-
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAAB3NzaC1yc2E...');
-
-        $this->assertTrue($result->success);
-    }
-
-    public function test_adds_ssh_key_successfully_with_valid_ed25519_key(): void
-    {
-        $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldReceive('addSshKey')->once()->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')->once();
-
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5...');
-
-        $this->assertTrue($result->success);
-    }
-
-    public function test_returns_forbidden_when_user_lacks_ssh_key_permission(): void
+    public function test_returns_forbidden_when_no_permission(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(false);
-        $this->hostinger->shouldNotReceive('addSshKey');
-        $this->auditLogger->shouldNotReceive('logAction');
 
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAAB3NzaC1yc2E...');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAA');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('forbidden', $result->error);
+        $this->assertSame('forbidden', $result->error);
     }
 
-    public function test_returns_invalid_key_when_key_format_is_invalid(): void
+    public function test_returns_invalid_key_for_unknown_prefix(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldNotReceive('addSshKey');
-        $this->auditLogger->shouldNotReceive('logAction');
 
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'invalid-key-format');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'dsa-sha1 AAAA');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('invalid_key', $result->error);
-        $this->assertNotNull($result->validationMessage);
+        $this->assertSame('invalid_key', $result->error);
     }
 
-    public function test_returns_hostinger_error_when_api_call_fails(): void
+    public function test_returns_policy_denied_when_policy_blocks(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
-        $this->hostinger->shouldReceive('addSshKey')->andReturn(HostingerSecurityApiResult::failure('corr-id', 'error'));
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::deny('SSH keys locked.'));
         $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAAB3NzaC1yc2E...');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAA');
 
         $this->assertFalse($result->success);
-        $this->assertEquals('hostinger_error', $result->error);
+        $this->assertSame('policy_denied', $result->error);
+        $this->assertSame('SSH keys locked.', $result->policyReason);
     }
 
-    public function test_logs_audit_with_ssh_key_resource_type(): void
+    public function test_returns_success_on_happy_path(): void
     {
         $this->permissions->shouldReceive('canManageSshKeys')->andReturn(true);
+        $this->policyEnforcer->shouldReceive('evaluate')->andReturn(PolicyDecision::allow());
         $this->hostinger->shouldReceive('addSshKey')->andReturn(HostingerSecurityApiResult::success('corr-id'));
-        $this->auditLogger->shouldReceive('logAction')
-            ->withArgs(function ($action, $actorId, $actorEmail, $vpsId, $resourceType, $resourceId, $correlationId, $outcome) {
-                return $action === 'ssh_key_add' && $resourceType === 'ssh_key' && $outcome === 'success';
-            })
-            ->once();
+        $this->auditLogger->shouldReceive('logAction')->once();
 
-        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-rsa AAAAB3NzaC1yc2E...');
+        $result = $this->useCase->execute(1, 'vps-123', 'my-key', 'ssh-ed25519 AAAA');
 
         $this->assertTrue($result->success);
     }

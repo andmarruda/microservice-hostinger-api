@@ -39,6 +39,7 @@ class FirewallController extends Controller
         if (!$result->success) {
             return match ($result->error) {
                 'forbidden' => response()->json(['message' => 'Forbidden.'], 403),
+                'policy_denied' => response()->json(['message' => 'Operation denied by policy.', 'reason' => $result->policyReason], 403),
                 'invalid_rule' => response()->json(['message' => $result->validationMessage], 422),
                 'hostinger_error' => response()->json([
                     'message' => 'Failed to communicate with Hostinger.',
@@ -77,6 +78,7 @@ class FirewallController extends Controller
         if (!$result->success) {
             return match ($result->error) {
                 'forbidden' => response()->json(['message' => 'Forbidden.'], 403),
+                'policy_denied' => response()->json(['message' => 'Operation denied by policy.', 'reason' => $result->policyReason], 403),
                 'hostinger_error' => response()->json([
                     'message' => 'Failed to communicate with Hostinger.',
                     'correlation_id' => $result->correlationId,
