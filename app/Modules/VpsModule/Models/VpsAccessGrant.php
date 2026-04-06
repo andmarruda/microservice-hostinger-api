@@ -17,12 +17,14 @@ class VpsAccessGrant extends Model
         'vps_id',
         'granted_by',
         'granted_at',
+        'stale_at',
     ];
 
     protected function casts(): array
     {
         return [
             'granted_at' => 'datetime',
+            'stale_at'   => 'datetime',
         ];
     }
 
