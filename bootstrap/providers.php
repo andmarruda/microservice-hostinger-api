@@ -7,4 +7,5 @@ return [
     App\Infrastructure\Audit\InfraAuditServiceProvider::class,
     App\Modules\VpsModule\VpsModuleServiceProvider::class,
     App\Modules\SecurityResourceModule\SecurityResourceModuleServiceProvider::class,
+    App\Modules\HostingerProxyModule\HostingerProxyModuleServiceProvider::class,
 ];
