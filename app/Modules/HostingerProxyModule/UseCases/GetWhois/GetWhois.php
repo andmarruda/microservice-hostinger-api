@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetWhois
 {
@@ -20,7 +21,7 @@ class GetWhois
         }
 
         try {
-            $data = Cache::remember('hostinger:domains:whois', 86400, fn () => $this->client->getWhois());
+            $data = InstrumentedCache::remember('hostinger:domains:whois', 86400, fn () => $this->client->getWhois());
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

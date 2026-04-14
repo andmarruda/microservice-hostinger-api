@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'hostinger' => [
+        'base_url'  => env('HOSTINGER_API_BASE_URL', 'https://developers.hostinger.com'),
+        'api_token' => env('HOSTINGER_API_TOKEN', ''),
+        'timeout'   => (int) env('HOSTINGER_API_TIMEOUT_SECONDS', 10),
+    ],
+
 ];

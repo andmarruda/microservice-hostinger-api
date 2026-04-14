@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetVpsDatacenters
 {
@@ -20,7 +21,7 @@ class GetVpsDatacenters
         }
 
         try {
-            $data = Cache::remember('hostinger:vps:datacenters', 86400, fn () => $this->client->getVpsDatacenters());
+            $data = InstrumentedCache::remember('hostinger:vps:datacenters', 86400, fn () => $this->client->getVpsDatacenters());
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'slow_request_threshold_ms' => (int) env('SLOW_REQUEST_THRESHOLD_MS', 2000),
+
 ];

@@ -18,6 +18,7 @@ class VpsAccessGrant extends Model
         'granted_by',
         'granted_at',
         'stale_at',
+        'expires_at',
     ];
 
     protected function casts(): array
@@ -25,7 +26,13 @@ class VpsAccessGrant extends Model
         return [
             'granted_at' => 'datetime',
             'stale_at'   => 'datetime',
+            'expires_at' => 'datetime',
         ];
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
     }
 
     public function user(): BelongsTo

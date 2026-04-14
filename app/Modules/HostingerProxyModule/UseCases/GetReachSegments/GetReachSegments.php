@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetReachSegments
 {
@@ -20,7 +21,7 @@ class GetReachSegments
         }
 
         try {
-            $data = Cache::remember('hostinger:reach:segments', 86400, fn () => $this->client->getReachSegments());
+            $data = InstrumentedCache::remember('hostinger:reach:segments', 86400, fn () => $this->client->getReachSegments());
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

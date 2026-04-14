@@ -19,15 +19,22 @@ class SecurityPermission extends Model
         'can_manage_ssh_keys',
         'can_manage_snapshots',
         'granted_by',
+        'expires_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'can_manage_firewall' => 'boolean',
-            'can_manage_ssh_keys' => 'boolean',
+            'can_manage_firewall'  => 'boolean',
+            'can_manage_ssh_keys'  => 'boolean',
             'can_manage_snapshots' => 'boolean',
+            'expires_at'           => 'datetime',
         ];
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->expires_at !== null && $this->expires_at->isPast();
     }
 
     public function canManageFirewall(): bool

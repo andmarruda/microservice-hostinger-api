@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetDomainPortfolio
 {
@@ -20,7 +21,7 @@ class GetDomainPortfolio
         }
 
         try {
-            $data = Cache::remember('hostinger:domains:portfolio', 86400, fn () => $this->client->getDomainPortfolio());
+            $data = InstrumentedCache::remember('hostinger:domains:portfolio', 86400, fn () => $this->client->getDomainPortfolio());
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetReachContacts
 {
@@ -20,7 +21,7 @@ class GetReachContacts
         }
 
         try {
-            $data = Cache::remember('hostinger:reach:contacts', 86400, fn () => $this->client->getReachContacts());
+            $data = InstrumentedCache::remember('hostinger:reach:contacts', 86400, fn () => $this->client->getReachContacts());
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

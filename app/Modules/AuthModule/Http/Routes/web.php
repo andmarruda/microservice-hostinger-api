@@ -10,8 +10,8 @@ use App\Modules\AuthModule\Http\Controllers\{
 Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => 'throttle:global'], function () {
     Route::group(['prefix' => 'auth', 'as' => 'auth.'], function () {
         Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login');
-        Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-        Route::get('/me', [AuthController::class, 'me'])->name('me');
+        Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum')->name('logout');
+        Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum')->name('me');
     });
 
     Route::group(['prefix' => 'invitations', 'as' => 'invitations.'], function () {

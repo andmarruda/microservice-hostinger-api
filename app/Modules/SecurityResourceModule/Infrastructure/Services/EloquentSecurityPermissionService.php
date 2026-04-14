@@ -11,6 +11,9 @@ class EloquentSecurityPermissionService implements SecurityPermissionInterface
     {
         $record = SecurityPermission::where('user_id', $userId)
             ->where('vps_id', $vpsId)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->first();
 
         return (bool) $record?->can_manage_firewall;
@@ -20,6 +23,9 @@ class EloquentSecurityPermissionService implements SecurityPermissionInterface
     {
         $record = SecurityPermission::where('user_id', $userId)
             ->where('vps_id', $vpsId)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->first();
 
         return (bool) $record?->can_manage_ssh_keys;
@@ -29,6 +35,9 @@ class EloquentSecurityPermissionService implements SecurityPermissionInterface
     {
         $record = SecurityPermission::where('user_id', $userId)
             ->where('vps_id', $vpsId)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->first();
 
         return (bool) $record?->can_manage_snapshots;

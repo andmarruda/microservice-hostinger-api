@@ -7,6 +7,7 @@ use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterfac
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use App\Modules\VpsModule\Ports\Repositories\VpsRepositoryInterface;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetVpsList
 {
@@ -22,7 +23,7 @@ class GetVpsList
         }
 
         try {
-            $allVps = Cache::remember('hostinger:vps:list:all', 86400, fn () => $this->client->getVpsList());
+            $allVps = InstrumentedCache::remember('hostinger:vps:list:all', 86400, fn () => $this->client->getVpsList());
 
             if ($user->can('Manage.Permissions.VPS.all')) {
                 return ProxyResult::success($allVps);

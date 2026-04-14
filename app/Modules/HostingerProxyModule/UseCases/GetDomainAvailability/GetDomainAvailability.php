@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetDomainAvailability
 {
@@ -21,7 +22,8 @@ class GetDomainAvailability
 
         try {
             $cacheKey = 'hostinger:domains:availability:' . md5($domain);
-            $data = Cache::remember($cacheKey, 3600, fn () => $this->client->getDomainAvailability($domain));
+            $ttl  = (int) config('hostinger.cache_ttl.domain_availability', 3600);
+            $data = InstrumentedCache::remember($cacheKey, $ttl, fn () => $this->client->getDomainAvailability($domain));
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

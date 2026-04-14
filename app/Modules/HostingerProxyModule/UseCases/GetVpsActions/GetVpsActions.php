@@ -7,6 +7,7 @@ use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterfac
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use App\Modules\VpsModule\Ports\Repositories\VpsRepositoryInterface;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetVpsActions
 {
@@ -27,7 +28,7 @@ class GetVpsActions
 
         try {
             $cacheKey = "hostinger:vps:{$vpsId}:actions";
-            $data = Cache::remember($cacheKey, 86400, fn () => $this->client->getVpsActions($vpsId));
+            $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsActions($vpsId));
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

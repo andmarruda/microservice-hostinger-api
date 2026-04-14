@@ -7,6 +7,7 @@ use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterfac
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use App\Modules\VpsModule\Ports\Repositories\VpsRepositoryInterface;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetVpsSshKeys
 {
@@ -27,7 +28,7 @@ class GetVpsSshKeys
 
         try {
             $cacheKey = "hostinger:vps:{$vpsId}:ssh-keys";
-            $data = Cache::remember($cacheKey, 86400, fn () => $this->client->getVpsSshKeys($vpsId));
+            $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsSshKeys($vpsId));
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

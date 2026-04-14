@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use Illuminate\Support\Facades\Cache;
+use App\Infrastructure\Cache\InstrumentedCache;
 
 class GetDnsZone
 {
@@ -21,7 +22,7 @@ class GetDnsZone
 
         try {
             $cacheKey = 'hostinger:dns:zone:' . md5($domain);
-            $data = Cache::remember($cacheKey, 86400, fn () => $this->client->getDnsZone($domain));
+            $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getDnsZone($domain));
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

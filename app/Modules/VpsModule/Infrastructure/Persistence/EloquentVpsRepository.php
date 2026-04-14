@@ -11,6 +11,9 @@ class EloquentVpsRepository implements VpsRepositoryInterface
     {
         return VpsAccessGrant::where('user_id', $userId)
             ->where('vps_id', $vpsId)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->exists();
     }
 
@@ -24,6 +27,9 @@ class EloquentVpsRepository implements VpsRepositoryInterface
     public function findAllForUser(int $userId): array
     {
         return VpsAccessGrant::where('user_id', $userId)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
             ->pluck('vps_id')
             ->all();
     }

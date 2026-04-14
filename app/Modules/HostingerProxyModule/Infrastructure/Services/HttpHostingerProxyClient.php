@@ -2,18 +2,23 @@
 
 namespace App\Modules\HostingerProxyModule\Infrastructure\Services;
 
+use App\Exceptions\HostingerQuotaExceededException;
+use App\Infrastructure\Quota\HostingerQuotaTracker;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class HttpHostingerProxyClient implements HostingerProxyClientInterface
 {
     private string $baseUrl;
     private string $apiToken;
+    private int $timeout;
 
-    public function __construct()
+    public function __construct(private HostingerQuotaTracker $quota)
     {
-        $this->baseUrl = rtrim(config('services.hostinger.base_url', 'https://developers.hostinger.com'), '/');
+        $this->baseUrl  = rtrim(config('services.hostinger.base_url', 'https://developers.hostinger.com'), '/');
         $this->apiToken = config('services.hostinger.api_token', '');
+        $this->timeout  = (int) config('services.hostinger.timeout', 10);
     }
 
     public function getBillingCatalog(): array
@@ -132,20 +137,63 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
     }
 
     /**
+     * @throws HostingerQuotaExceededException
      * @throws \RuntimeException
      */
     private function get(string $path, array $query = []): array
     {
-        $request = Http::withToken($this->apiToken)->retry(3, 200);
+        // GAP 9: Hard quota enforcement before consuming the API call
+        if ($this->quota->isHardLimitReached()) {
+            throw new HostingerQuotaExceededException(
+                'Hostinger API daily quota hard limit reached. Try again tomorrow.',
+            );
+        }
+
+        // GAP 7: Track quota per resource type
+        $resourceType = $this->extractResourceType($path);
+        $this->quota->increment($resourceType);
+
+        // GAP 1: Propagate X-Correlation-ID to Hostinger
+        $correlationId = app()->bound('request.id') ? app('request.id') : null;
+
+        $request = Http::withToken($this->apiToken)
+            ->timeout($this->timeout)   // GAP 6
+            ->retry(3, 200);
+
+        if ($correlationId) {
+            $request = $request->withHeader('X-Correlation-ID', $correlationId);
+        }
 
         $response = empty($query)
             ? $request->get($this->baseUrl . $path)
             : $request->get($this->baseUrl . $path, $query);
 
         if (!$response->successful()) {
+            // GAP 3: Tag errors with error_source: hostinger
+            Log::warning('Hostinger API error.', [
+                'error_source'   => 'hostinger',
+                'status_code'    => $response->status(),
+                'path'           => $path,
+                'correlation_id' => $correlationId,
+            ]);
+
             throw new \RuntimeException("Hostinger API error [{$response->status()}]: {$response->body()}");
         }
 
         return $response->json() ?? [];
+    }
+
+    private function extractResourceType(string $path): string
+    {
+        return match (true) {
+            str_contains($path, '/api/vps/')     => 'vps',
+            str_contains($path, '/api/billing/') => 'billing',
+            str_contains($path, '/api/domains/') => 'domains',
+            str_contains($path, '/api/dns/')     => 'dns',
+            str_contains($path, '/api/hosting/') => 'hosting',
+            str_contains($path, '/api/reach/')   => 'reach',
+            str_contains($path, '/api/orders/')  => 'orders',
+            default                              => 'other',
+        };
     }
 }

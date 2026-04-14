@@ -5,7 +5,7 @@ use App\Modules\SecurityResourceModule\Http\Controllers\SnapshotController;
 use App\Modules\SecurityResourceModule\Http\Controllers\SshKeyController;
 use Illuminate\Support\Facades\Route;
 
-Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['throttle:global', 'throttle:authenticated']], function () {
+Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['auth:sanctum', 'throttle:global', 'throttle:authenticated']], function () {
     Route::group(['prefix' => 'vps', 'as' => 'security.vps.', 'middleware' => 'throttle:writes'], function () {
         Route::post('/{vpsId}/firewall/rules', [FirewallController::class, 'store'])->name('firewall.store');
         Route::delete('/{vpsId}/firewall/rules/{ruleId}', [FirewallController::class, 'destroy'])->name('firewall.destroy');

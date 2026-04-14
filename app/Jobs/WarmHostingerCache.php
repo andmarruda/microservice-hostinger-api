@@ -12,19 +12,17 @@ class WarmHostingerCache implements ShouldQueue
 {
     use Queueable;
 
-    private const TTL = 86400;
-
     public function handle(HostingerProxyClientInterface $client): void
     {
         $tasks = [
-            'hostinger:vps:list:all'   => fn () => $client->getVpsList(),
-            'hostinger:vps:os-templates' => fn () => $client->getVpsOsTemplates(),
-            'hostinger:vps:datacenters'  => fn () => $client->getVpsDatacenters(),
+            'hostinger:vps:list:all'     => [fn () => $client->getVpsList(),         config('hostinger.cache_ttl.vps_list', 86400)],
+            'hostinger:vps:os-templates' => [fn () => $client->getVpsOsTemplates(),   config('hostinger.cache_ttl.os_templates', 86400)],
+            'hostinger:vps:datacenters'  => [fn () => $client->getVpsDatacenters(),   config('hostinger.cache_ttl.datacenters', 86400)],
         ];
 
-        foreach ($tasks as $key => $fetcher) {
+        foreach ($tasks as $key => [$fetcher, $ttl]) {
             try {
-                Cache::put($key, $fetcher(), self::TTL);
+                Cache::put($key, $fetcher(), (int) $ttl);
             } catch (\Throwable $e) {
                 Log::warning("WarmHostingerCache: failed to warm [{$key}]", ['error' => $e->getMessage()]);
             }

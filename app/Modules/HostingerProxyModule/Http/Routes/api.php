@@ -9,7 +9,7 @@ use App\Modules\HostingerProxyModule\Http\Controllers\ReachController;
 use App\Modules\HostingerProxyModule\Http\Controllers\VpsReadController;
 use Illuminate\Support\Facades\Route;
 
-Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['throttle:global', 'throttle:authenticated']], function () {
+Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['auth:sanctum', 'throttle:global', 'throttle:authenticated']], function () {
 
     Route::group(['prefix' => 'billing', 'as' => 'billing.'], function () {
         Route::get('/catalog', [BillingController::class, 'catalog'])->name('catalog');
