@@ -10,6 +10,17 @@ The service is built using Laravel 12 and leverages Spatie Laravel Permissions t
 
 ---
 
+## Documentation
+
+Full usage documentation is available in two languages:
+
+- **English:** [docs/en/README.md](docs/en/README.md)
+- **Português:** [docs/pt/README.md](docs/pt/README.md)
+
+The documentation covers installation, environment variables, authentication, roles & permissions, all API endpoints, the web interface, scheduled jobs, governance features, observability, and testing.
+
+---
+
 ## Foundation Document
 
 The architectural vision, scope, operational principles, and evolution strategy of this project are documented in the foundation document:

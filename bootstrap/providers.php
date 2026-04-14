@@ -13,4 +13,5 @@ return [
     App\Modules\ObservabilityModule\ObservabilityModuleServiceProvider::class,
     App\Modules\GovernanceModule\GovernanceModuleServiceProvider::class,
     App\Modules\OpsModule\OpsModuleServiceProvider::class,
+    App\Modules\FrontendModule\FrontendModuleServiceProvider::class,
 ];
