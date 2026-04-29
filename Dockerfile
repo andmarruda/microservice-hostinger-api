@@ -12,22 +12,39 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
 COPY . .
-RUN composer dump-autoload --optimize --no-dev \
-    && composer run-script --no-dev post-autoload-dump 2>/dev/null || true
+RUN composer dump-autoload --optimize --no-dev
 
 # Stage 2: Build frontend assets (needs PHP for wayfinder:generate)
 FROM node:22-alpine AS node-builder
 
 WORKDIR /app
 
-RUN apk add --no-cache php83 && ln -sf /usr/bin/php83 /usr/bin/php
+RUN apk add --no-cache \
+    php84 \
+    php84-ctype \
+    php84-dom \
+    php84-fileinfo \
+    php84-mbstring \
+    php84-openssl \
+    php84-phar \
+    php84-pdo \
+    php84-pdo_sqlite \
+    php84-session \
+    php84-simplexml \
+    php84-sqlite3 \
+    php84-tokenizer \
+    php84-xml \
+    php84-xmlreader \
+    php84-xmlwriter \
+    && ln -sf /usr/bin/php84 /usr/bin/php
 
-COPY package.json package-lock.json ./
+#Copy all files without vendor
+COPY . .
+
+#install dependencies for app
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
 RUN npm ci --ignore-scripts
-
-# Copy full Laravel app (with vendor/) so artisan works during build
-COPY --from=composer-builder /app .
-
 RUN npm run build
 
 # Stage 3: Final application image

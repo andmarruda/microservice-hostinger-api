@@ -1,0 +1,9 @@
+.codex
+.git
+.github
+node_modules
+vendor
+bootstrap/cache/*.php
+npm-debug.log
+yarn-error.log
+vendor/
