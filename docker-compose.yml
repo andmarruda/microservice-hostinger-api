@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: seu-usuario/microservice-hostinger-api:latest
+    ports:
+      - "8000:8000"
+    environment:
+      APP_KEY: ${APP_KEY:-}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      LOG_CHANNEL: stderr
+      # Database — configure conforme seu ambiente:
+      # DB_CONNECTION: mysql
+      # DB_HOST: seu-host
+      # DB_PORT: 3306
+      # DB_DATABASE: seu-banco
+      # DB_USERNAME: seu-usuario
+      # DB_PASSWORD: sua-senha
+    volumes:
+      - ./.env:/var/www/html/.env
+      - storage_data:/var/www/html/storage
+    command: >
+      sh -c "[ -z \"$$APP_KEY\" ] && php artisan key:generate;
+             php artisan serve --host=0.0.0.0 --port=8000"
+    networks:
+      - default
+      - proxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "php", "artisan", "about", "--only=environment"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  storage_data:
+
+networks:
+  default:
+    driver: bridge
+  proxy:
+    external: true
+    name: ${EXTERNAL_NETWORK:-bridge}
