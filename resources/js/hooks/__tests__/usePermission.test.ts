@@ -39,6 +39,12 @@ describe('usePermission', () => {
             const { result } = renderHook(() => usePermission());
             expect(result.current.can('anything')).toBe(false);
         });
+
+        it('returns true for root even when permission is not listed', () => {
+            mockPage(['root'], []);
+            const { result } = renderHook(() => usePermission());
+            expect(result.current.can('anything')).toBe(true);
+        });
     });
 
     describe('is()', () => {

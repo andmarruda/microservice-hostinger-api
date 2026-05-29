@@ -26,18 +26,36 @@ class DashboardController extends Controller
 
         $vpsResult = $this->getVpsList->execute($user);
         $vpsCount  = $vpsResult->success ? count($vpsResult->data) : 0;
+        $isRoot    = $user->hasRole('root');
 
-        $openReviews      = AccessReview::where('status', 'pending')->count();
-        $pendingApprovals = PermissionApproval::where('status', 'pending')->count();
-        $openDriftReports = DriftReport::where('status', 'open')->count();
+        $openReviews      = $isRoot ? AccessReview::where('status', 'pending')->count() : null;
+        $pendingApprovals = $isRoot ? PermissionApproval::where('status', 'pending')->count() : null;
+        $openDriftReports = $isRoot ? DriftReport::where('status', 'open')->count() : null;
 
-        $queuePending = DB::table('jobs')->count();
-        $queueFailed  = DB::table('failed_jobs')->count();
+        $queuePending = $isRoot ? DB::table('jobs')->count() : null;
+        $queueFailed  = $isRoot ? DB::table('failed_jobs')->count() : null;
 
-        $quotaTotal      = $this->quota->getToday();
-        $quotaWarnAt     = $this->quota->getWarningThreshold();
-        $quotaHardLimit  = $this->quota->getHardLimit();
-        $quotaByResource = $this->quota->getTodayByResource();
+        $quota = null;
+
+        if ($isRoot) {
+            $quotaTotal      = $this->quota->getToday();
+            $quotaWarnAt     = $this->quota->getWarningThreshold();
+            $quotaHardLimit  = $this->quota->getHardLimit();
+            $quotaByResource = $this->quota->getTodayByResource();
+
+            $quota = [
+                'total'       => $quotaTotal,
+                'warn_at'     => $quotaWarnAt,
+                'hard_limit'  => $quotaHardLimit,
+                'by_resource' => $quotaByResource,
+                'percent'     => $quotaWarnAt > 0 ? round($quotaTotal / $quotaWarnAt * 100, 1) : 0,
+                'status'      => match (true) {
+                    $quotaHardLimit > 0 && $quotaTotal >= $quotaHardLimit => 'exceeded',
+                    $quotaWarnAt > 0 && $quotaTotal >= $quotaWarnAt => 'warning',
+                    default => 'ok',
+                },
+            ];
+        }
 
         return Inertia::render('Dashboard', [
             'vpsCount'          => $vpsCount,
@@ -46,18 +64,7 @@ class DashboardController extends Controller
             'openDriftReports'  => $openDriftReports,
             'queuePending'      => $queuePending,
             'queueFailed'       => $queueFailed,
-            'quota' => [
-                'total'       => $quotaTotal,
-                'warn_at'     => $quotaWarnAt,
-                'hard_limit'  => $quotaHardLimit,
-                'by_resource' => $quotaByResource,
-                'percent'     => $quotaWarnAt > 0 ? round($quotaTotal / $quotaWarnAt * 100, 1) : 0,
-                'status'      => match (true) {
-                    $quotaHardLimit > 0 && $quotaTotal >= $quotaHardLimit => 'exceeded',
-                    $quotaTotal >= $quotaWarnAt                           => 'warning',
-                    default                                               => 'ok',
-                },
-            ],
+            'quota'             => $quota,
         ]);
     }
 }

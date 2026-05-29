@@ -16,9 +16,9 @@ describe('Login page', () => {
         expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
     });
 
-    it('renders Hostinger heading', () => {
+    it('renders Hostinger branding', () => {
         render(<Login />);
-        expect(screen.getByRole('heading', { name: /hostinger/i })).toBeInTheDocument();
+        expect(screen.getAllByText(/hostinger vps/i)[0]).toBeInTheDocument();
     });
 
     it('calls setData on email input change', async () => {
