@@ -7,6 +7,7 @@ use App\Modules\FrontendModule\Http\Controllers\DnsPageController;
 use App\Modules\FrontendModule\Http\Controllers\DomainPageController;
 use App\Modules\FrontendModule\Http\Controllers\GovernancePageController;
 use App\Modules\FrontendModule\Http\Controllers\OpsPageController;
+use App\Modules\FrontendModule\Http\Controllers\UserManagementPageController;
 use App\Modules\FrontendModule\Http\Controllers\VpsPageController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +47,9 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/billing', [BillingPageController::class, 'index'])->name('billing.index');
 
+    Route::get('/users', [UserManagementPageController::class, 'index'])->name('users.index');
+    Route::post('/users/invite', [UserManagementPageController::class, 'invite'])->name('users.invite');
+
     Route::get('/governance/reviews', [GovernancePageController::class, 'reviews'])->name('governance.reviews.index');
     Route::post('/governance/reviews', [GovernancePageController::class, 'storeReview'])->name('governance.reviews.store');
     Route::get('/governance/reviews/{id}', [GovernancePageController::class, 'reviewShow'])->name('governance.reviews.show');
@@ -60,6 +64,8 @@ Route::middleware(['web', 'auth'])->group(function () {
         ->name('governance.approvals.approve');
 
     Route::middleware('role:root')->group(function () {
+        Route::post('/users', [UserManagementPageController::class, 'store'])->name('users.store');
+
         Route::get('/ops/health', [OpsPageController::class, 'health'])->name('ops.health');
         Route::get('/ops/quota', [OpsPageController::class, 'quota'])->name('ops.quota');
         Route::get('/ops/cache', [OpsPageController::class, 'cache'])->name('ops.cache');

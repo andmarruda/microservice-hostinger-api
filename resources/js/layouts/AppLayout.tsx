@@ -40,6 +40,12 @@ const NAV: NavGroup[] = [
         ],
     },
     {
+        title: 'Administration',
+        items: [
+            { label: 'Users', href: '/users', match: '/users', permissions: ['Manage.Invite.user'] },
+        ],
+    },
+    {
         title: 'Governance',
         rootOnly: true,
         items: [
