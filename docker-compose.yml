@@ -3,14 +3,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # image: seu-usuario/microservice-hostinger-api:latest
-    ports:
-      - "8000:8000"
+    # image: seu-usuario/microservice-hostinger-api:latest  # use esta linha se já tiver a imagem publicada
+    expose:
+      - "9000"
     environment:
       APP_KEY: ${APP_KEY:-}
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: ${APP_DEBUG:-false}
-      APP_URL: ${APP_URL:-http://localhost:8000}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: ${DB_CONNECTION:-sqlite}
+      DB_DATABASE: ${DB_DATABASE:-/var/www/html/database/database.sqlite}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      CACHE_STORE: ${CACHE_STORE:-database}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
       LOG_CHANNEL: stderr
       # Database — configure conforme seu ambiente:
       # DB_CONNECTION: mysql
@@ -22,15 +27,12 @@ services:
     volumes:
       - ./.env:/var/www/html/.env
       - storage_data:/var/www/html/storage
-    command: >
-      sh -c "[ -z \"$$APP_KEY\" ] && php artisan key:generate;
-             php artisan serve --host=0.0.0.0 --port=8000"
     networks:
       - default
       - proxy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "php", "artisan", "about", "--only=environment"]
+      test: ["CMD-SHELL", "php-fpm -t 2>&1 | grep -q 'test is successful'"]
       interval: 30s
       timeout: 10s
       retries: 3

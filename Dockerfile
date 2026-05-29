@@ -1,12 +1,17 @@
 # ==========================================
-# Stage 1: PHP & Composer's dependecies
+# Stage 1: Build (PHP + Node.js + Composer)
 # ==========================================
-FROM php:8.4-cli-alpine AS php-builder
+FROM php:8.4-cli-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache unzip git libzip-dev oniguruma-dev libxml2-dev sqlite-dev postgresql-dev linux-headers \
-    && docker-php-ext-install zip mbstring xml dom bcmath pcntl pdo pdo_sqlite pdo_pgsql
+RUN apk add --no-cache \
+    unzip git \
+    libzip-dev oniguruma-dev libxml2-dev sqlite-dev postgresql-dev linux-headers \
+    icu-dev icu-libs libpng-dev libjpeg-turbo-dev freetype-dev \
+    nodejs npm \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install zip mbstring xml dom simplexml bcmath pcntl intl gd exif pdo pdo_sqlite pdo_pgsql
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -16,64 +21,36 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 COPY . .
 RUN composer dump-autoload --optimize --no-dev
 
+RUN npm ci --ignore-scripts \
+    && php artisan wayfinder:generate \
+    && npm run build
+
 
 # ==========================================
-# Stage 2: Frontend build (Node.js)
+# Stage 2: Production app (PHP-FPM)
 # ==========================================
-FROM node:22-alpine AS node-builder
-
-WORKDIR /app
-
-COPY --from=php-builder /usr/local/bin/php /usr/local/bin/php
-COPY --from=php-builder /usr/local/lib/php /usr/local/lib/php
-COPY --from=php-builder /usr/local/include/php /usr/local/include/php
-
-RUN apk add --no-cache \
-    bash \
-    curl \
-    sqlite \
-    sqlite-dev \
-    postgresql-dev \
-    libzip-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    linux-headers
-
-COPY --from=php-builder /app /app
-
-RUN npm ci --ignore-scripts
-RUN npm run build
-
-RUN php artisan wayfinder:generate
-
-FROM php:8.4-cli-alpine AS app
+FROM php:8.4-fpm-alpine AS app
 
 WORKDIR /var/www/html
 
-RUN docker-php-ext-install \
-    pdo \
-    pdo_sqlite \
-    pdo_pgsql \
-    mbstring \
-    xml \
-    dom \
-    bcmath \
-    pcntl \
-    zip \
-    opcache
+RUN apk add --no-cache \
+    libzip-dev oniguruma-dev libxml2-dev sqlite-dev postgresql-dev linux-headers \
+    icu-dev icu-libs libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_sqlite pdo_pgsql mbstring xml dom simplexml bcmath pcntl intl gd exif zip \
+    && docker-php-ext-enable opcache
 
-COPY --from=node-builder /app /var/www/html
+COPY --from=builder /app /var/www/html
 
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    LOG_CHANNEL=stderr \
-    PHP_CLI_SERVER_WORKERS=4
+    LOG_CHANNEL=stderr
 
-EXPOSE 8000
+EXPOSE 9000
 
 USER www-data
 
-CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["php-fpm"]
