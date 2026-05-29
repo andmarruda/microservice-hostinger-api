@@ -31,7 +31,8 @@ RUN npm ci --ignore-scripts \
 # ==========================================
 FROM php:8.4-fpm-alpine AS app
 
-WORKDIR /var/www/html
+ARG APP_WORKDIR=/var/www/html
+WORKDIR ${APP_WORKDIR}
 
 RUN apk add --no-cache \
     libzip-dev oniguruma-dev libxml2-dev sqlite-dev postgresql-dev linux-headers \
@@ -40,7 +41,7 @@ RUN apk add --no-cache \
     && docker-php-ext-install pdo pdo_sqlite pdo_pgsql mbstring xml dom simplexml bcmath pcntl intl gd exif zip \
     && docker-php-ext-enable opcache
 
-COPY --from=builder /app /var/www/html
+COPY --from=builder /app ${APP_WORKDIR}
 
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache

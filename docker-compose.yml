@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        APP_WORKDIR: ${APP_WORKDIR:-/var/www/html}
     # image: seu-usuario/microservice-hostinger-api:latest  # use esta linha se já tiver a imagem publicada
     expose:
       - "9000"
@@ -12,7 +14,7 @@ services:
       APP_DEBUG: ${APP_DEBUG:-false}
       APP_URL: ${APP_URL:-http://localhost}
       DB_CONNECTION: ${DB_CONNECTION:-sqlite}
-      DB_DATABASE: ${DB_DATABASE:-/var/www/html/database/database.sqlite}
+      DB_DATABASE: ${DB_DATABASE:-${APP_WORKDIR:-/var/www/html}/database/database.sqlite}
       SESSION_DRIVER: ${SESSION_DRIVER:-database}
       CACHE_STORE: ${CACHE_STORE:-database}
       QUEUE_CONNECTION: ${QUEUE_CONNECTION:-database}
@@ -25,8 +27,8 @@ services:
       # DB_USERNAME: seu-usuario
       # DB_PASSWORD: sua-senha
     volumes:
-      - ./.env:/var/www/html/.env
-      - storage_data:/var/www/html/storage
+      - ./.env:${APP_WORKDIR:-/var/www/html}/.env
+      - storage_data:${APP_WORKDIR:-/var/www/html}/storage
     networks:
       - default
       - proxy
