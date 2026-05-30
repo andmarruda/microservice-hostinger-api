@@ -41,8 +41,9 @@ const NAV: NavGroup[] = [
     },
     {
         title: 'Administration',
+        rootOnly: true,
         items: [
-            { label: 'Users', href: '/users', match: '/users', permissions: ['Manage.Invite.user'] },
+            { label: 'Users', href: '/users', match: '/users' },
         ],
     },
     {
@@ -86,7 +87,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children, title }: AppLayoutProps) {
     const { auth, flash } = usePage<SharedData>().props;
-    const { can, isRoot } = usePermission();
+    const { can, isAdmin } = usePermission();
     const url = usePage().url;
 
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -106,16 +107,15 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
     }
 
     function canSeeItem(item: NavItem) {
-        if (item.rootOnly && !isRoot()) return false;
+        if (item.rootOnly && !isAdmin()) return false;
         if (!item.permissions) return true;
-
         return item.permissions.some((permission) => can(permission));
     }
 
     const visibleNav = NAV.map((group) => ({
         ...group,
         items: group.items.filter(canSeeItem),
-    })).filter((group) => (!group.rootOnly || isRoot()) && group.items.length > 0);
+    })).filter((group) => (!group.rootOnly || isAdmin()) && group.items.length > 0);
 
     return (
         <div className="flex min-h-screen bg-gray-50">
@@ -158,7 +158,9 @@ export default function AppLayout({ children, title }: AppLayoutProps) {
                             {auth.user.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-gray-900">{auth.user.name}</p>
+                            <Link href="/profile" className="truncate text-sm font-medium text-gray-900 hover:underline">
+                                {auth.user.name}
+                            </Link>
                             <p className="truncate text-xs text-gray-500">{auth.user.email}</p>
                         </div>
                         <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-700">

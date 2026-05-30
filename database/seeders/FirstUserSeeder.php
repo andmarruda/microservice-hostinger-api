@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Modules\AuthModule\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Permission;
 
 class FirstUserSeeder extends Seeder
 {
@@ -19,16 +18,13 @@ class FirstUserSeeder extends Seeder
             [
                 'name'              => 'Bootstrap Admin',
                 'password'          => Hash::make($password),
-                'email_verified_at' => null,
+                'email_verified_at' => now(),
                 'is_manager'        => true,
             ]
         );
 
-        $permission = Permission::firstOrCreate([
-            'name'       => 'Manage.Invite.user',
-            'guard_name' => 'web',
-        ]);
-
-        $user->givePermissionTo($permission);
+        if (! $user->hasRole('admin')) {
+            $user->assignRole('admin');
+        }
     }
 }

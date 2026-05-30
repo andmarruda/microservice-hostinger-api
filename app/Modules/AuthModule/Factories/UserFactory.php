@@ -61,4 +61,20 @@ class UserFactory extends Factory
             $user->givePermissionTo($permission);
         });
     }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_manager' => true,
+        ])->afterCreating(function ($user) {
+            $user->assignRole('admin');
+        });
+    }
+
+    public function regularUser(): static
+    {
+        return $this->afterCreating(function ($user) {
+            $user->assignRole('user');
+        });
+    }
 }

@@ -22,6 +22,7 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
     return (
         <dialog
             ref={ref}
+            open={open || undefined}
             onClose={onClose}
             onClick={(e) => e.target === ref.current && onClose()}
             className={cn(

@@ -79,8 +79,8 @@ function quotaBadge(status: Quota['status']) {
 }
 
 export default function Dashboard({ vpsCount, openReviews, pendingApprovals, openDriftReports, queuePending, queueFailed, quota }: Props) {
-    const { can, isRoot } = usePermission();
-    const root = isRoot();
+    const { can, isAdmin } = usePermission();
+    const root = isAdmin();
     const canAny = (permissions: string[]) => permissions.some((permission) => can(permission));
 
     const shortcuts = [

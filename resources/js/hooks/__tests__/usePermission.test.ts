@@ -40,8 +40,8 @@ describe('usePermission', () => {
             expect(result.current.can('anything')).toBe(false);
         });
 
-        it('returns true for root even when permission is not listed', () => {
-            mockPage(['root'], []);
+        it('returns true for admin even when permission is not listed', () => {
+            mockPage(['admin'], []);
             const { result } = renderHook(() => usePermission());
             expect(result.current.can('anything')).toBe(true);
         });
@@ -67,23 +67,23 @@ describe('usePermission', () => {
         });
     });
 
-    describe('isRoot()', () => {
-        it('returns true when roles contains root', () => {
-            mockPage(['root'], []);
+    describe('isAdmin()', () => {
+        it('returns true when roles contains admin', () => {
+            mockPage(['admin'], []);
             const { result } = renderHook(() => usePermission());
-            expect(result.current.isRoot()).toBe(true);
+            expect(result.current.isAdmin()).toBe(true);
         });
 
-        it('returns false when roles does not contain root', () => {
-            mockPage(['admin', 'viewer'], []);
+        it('returns false when roles does not contain admin', () => {
+            mockPage(['user', 'viewer'], []);
             const { result } = renderHook(() => usePermission());
-            expect(result.current.isRoot()).toBe(false);
+            expect(result.current.isAdmin()).toBe(false);
         });
 
         it('returns false for empty roles', () => {
             mockPage([], []);
             const { result } = renderHook(() => usePermission());
-            expect(result.current.isRoot()).toBe(false);
+            expect(result.current.isAdmin()).toBe(false);
         });
     });
 });

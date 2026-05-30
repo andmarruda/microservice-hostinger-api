@@ -2,29 +2,96 @@
 
 namespace App\Modules\FrontendModule\Http\Controllers;
 
+use App\Modules\AuthModule\Infrastructure\Mail\WelcomeMail;
 use App\Modules\AuthModule\Models\User;
 use App\Modules\AuthModule\UseCases\InviteUser\InviteUser;
+use App\Modules\HostingerProxyModule\UseCases\GetVpsList\GetVpsList;
+use App\Modules\SecurityResourceModule\Models\SecurityPermission;
+use App\Modules\VpsModule\Models\VpsAccessGrant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Permission\Models\Permission;
 
 class UserManagementPageController extends Controller
 {
     public function __construct(
         private InviteUser $inviteUser,
+        private GetVpsList $getVpsList,
     ) {}
 
     public function index(): Response
     {
-        $users = User::orderBy('created_at', 'desc')
-            ->get(['id', 'name', 'email', 'email_verified_at', 'is_manager', 'created_at']);
+        $users = User::with('roles')
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'name', 'email', 'email_verified_at', 'is_manager', 'created_at'])
+            ->map(fn ($u) => array_merge($u->toArray(), [
+                'role' => $u->roles->first()?->name ?? 'user',
+            ]));
 
         return Inertia::render('Users/Index', [
             'users' => $users,
+        ]);
+    }
+
+    public function show(Request $request, int $id): Response
+    {
+        $user = User::with(['roles'])->findOrFail($id);
+
+        $allVpsResult = $this->getVpsList->execute($request->user());
+        $allVps = $allVpsResult->success ? $allVpsResult->data : [];
+
+        $grants = VpsAccessGrant::where('user_id', $id)
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->get(['id', 'vps_id', 'granted_at', 'expires_at']);
+
+        $grantedVpsIds = $grants->pluck('vps_id')->all();
+
+        $permissions = SecurityPermission::where('user_id', $id)
+            ->whereIn('vps_id', $grantedVpsIds)
+            ->get(['vps_id', 'can_manage_firewall', 'can_manage_ssh_keys', 'can_manage_snapshots']);
+
+        $permissionsByVps = $permissions->keyBy('vps_id');
+
+        $grantedVps = array_values(array_filter(
+            $allVps,
+            fn ($v) => in_array($v['id'] ?? null, $grantedVpsIds, true)
+        ));
+
+        $grantedVps = array_map(function ($vps) use ($grants, $permissionsByVps) {
+            $grant = $grants->firstWhere('vps_id', $vps['id']);
+            $perms = $permissionsByVps[$vps['id']] ?? null;
+            return array_merge($vps, [
+                'grant_id'             => $grant?->id,
+                'granted_at'           => $grant?->granted_at,
+                'expires_at'           => $grant?->expires_at,
+                'can_manage_firewall'  => (bool) ($perms?->can_manage_firewall ?? false),
+                'can_manage_ssh_keys'  => (bool) ($perms?->can_manage_ssh_keys ?? false),
+                'can_manage_snapshots' => (bool) ($perms?->can_manage_snapshots ?? false),
+            ]);
+        }, $grantedVps);
+
+        $availableVps = array_values(array_filter(
+            $allVps,
+            fn ($v) => !in_array($v['id'] ?? null, $grantedVpsIds, true)
+        ));
+
+        return Inertia::render('Users/Show', [
+            'user'         => [
+                'id'                => $user->id,
+                'name'              => $user->name,
+                'email'             => $user->email,
+                'email_verified_at' => $user->email_verified_at,
+                'created_at'        => $user->created_at,
+                'role'              => $user->roles->first()?->name ?? 'user',
+            ],
+            'grantedVps'   => $grantedVps,
+            'availableVps' => $availableVps,
         ]);
     }
 
@@ -59,7 +126,7 @@ class UserManagementPageController extends Controller
             'email'                 => ['required', 'email', 'max:255', 'unique:users,email'],
             'password'              => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
-            'is_manager'            => ['boolean'],
+            'role'                  => ['required', 'in:admin,user'],
         ]);
 
         $user = User::create([
@@ -67,14 +134,36 @@ class UserManagementPageController extends Controller
             'email'             => $validated['email'],
             'password'          => Hash::make($validated['password']),
             'email_verified_at' => now(),
-            'is_manager'        => $validated['is_manager'] ?? false,
+            'is_manager'        => $validated['role'] === 'admin',
         ]);
 
-        if ($validated['is_manager'] ?? false) {
-            $permission = Permission::firstOrCreate(['name' => 'Manage.Invite.user', 'guard_name' => 'web']);
-            $user->givePermissionTo($permission);
-        }
+        $user->assignRole($validated['role']);
+
+        Mail::to($user->email)->send(new WelcomeMail(
+            name: $user->name,
+            email: $user->email,
+            temporaryPassword: $validated['password'],
+            loginUrl: route('login'),
+        ));
 
         return back()->with('success', "User {$validated['name']} created successfully.");
+    }
+
+    public function destroy(int $id): RedirectResponse
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->hasRole('admin')) {
+            $adminCount = User::role('admin')->count();
+            if ($adminCount <= 1) {
+                return back()->withErrors(['user' => 'Cannot delete the last admin.']);
+            }
+        }
+
+        VpsAccessGrant::where('user_id', $id)->delete();
+        SecurityPermission::where('user_id', $id)->delete();
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', "User {$user->name} deleted.");
     }
 }

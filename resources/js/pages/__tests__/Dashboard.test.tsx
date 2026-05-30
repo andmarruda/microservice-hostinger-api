@@ -60,7 +60,7 @@ describe('Dashboard page', () => {
     });
 
     it('renders root-only governance and operations metrics for root', () => {
-        mockPageData({ roles: ['root'], permissions: ['VPS.VirtualMachine.Manage.read'] });
+        mockPageData({ roles: ['admin'], permissions: ['VPS.VirtualMachine.Manage.read'] });
         render(<Dashboard {...defaultProps} />);
         expect(screen.getByText('Open Drift Reports')).toBeInTheDocument();
         expect(screen.getByText('Pending Approvals')).toBeInTheDocument();
@@ -78,31 +78,31 @@ describe('Dashboard page', () => {
     });
 
     it('renders quota percentage for root users', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         render(<Dashboard {...defaultProps} />);
         expect(screen.getByText('40%')).toBeInTheDocument();
     });
 
     it('renders quota bar green when status is ok', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         const { container } = render(<Dashboard {...defaultProps} />);
         expect(container.querySelector('.bg-green-500')).toBeInTheDocument();
     });
 
     it('renders quota bar yellow when status is warning', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         const { container } = render(<Dashboard {...defaultProps} quota={{ ...defaultProps.quota, percent: 75, status: 'warning' }} />);
         expect(container.querySelector('.bg-yellow-500')).toBeInTheDocument();
     });
 
     it('renders quota bar red when status is exceeded', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         const { container } = render(<Dashboard {...defaultProps} quota={{ ...defaultProps.quota, percent: 100, status: 'exceeded' }} />);
         expect(container.querySelector('.bg-red-500')).toBeInTheDocument();
     });
 
     it('renders failed jobs in red when root has failed queue jobs', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         render(<Dashboard {...defaultProps} queueFailed={3} />);
         const els = screen.getAllByText('3');
         const redEl = els.find((el) => el.classList.contains('text-red-700'));

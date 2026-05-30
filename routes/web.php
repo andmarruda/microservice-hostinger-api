@@ -7,6 +7,8 @@ use App\Modules\FrontendModule\Http\Controllers\DnsPageController;
 use App\Modules\FrontendModule\Http\Controllers\DomainPageController;
 use App\Modules\FrontendModule\Http\Controllers\GovernancePageController;
 use App\Modules\FrontendModule\Http\Controllers\OpsPageController;
+use App\Modules\FrontendModule\Http\Controllers\ProfileController;
+use App\Modules\FrontendModule\Http\Controllers\UserAccessController;
 use App\Modules\FrontendModule\Http\Controllers\UserManagementPageController;
 use App\Modules\FrontendModule\Http\Controllers\VpsPageController;
 use Illuminate\Support\Facades\Route;
@@ -47,8 +49,9 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/billing', [BillingPageController::class, 'index'])->name('billing.index');
 
-    Route::get('/users', [UserManagementPageController::class, 'index'])->name('users.index');
-    Route::post('/users/invite', [UserManagementPageController::class, 'invite'])->name('users.invite');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     Route::get('/governance/reviews', [GovernancePageController::class, 'reviews'])->name('governance.reviews.index');
     Route::post('/governance/reviews', [GovernancePageController::class, 'storeReview'])->name('governance.reviews.store');
@@ -63,8 +66,16 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/governance/approvals/{id}/approve', [GovernancePageController::class, 'approve'])
         ->name('governance.approvals.approve');
 
-    Route::middleware('role:root')->group(function () {
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/users', [UserManagementPageController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementPageController::class, 'store'])->name('users.store');
+        Route::post('/users/invite', [UserManagementPageController::class, 'invite'])->name('users.invite');
+        Route::get('/users/{id}', [UserManagementPageController::class, 'show'])->name('users.show');
+        Route::delete('/users/{id}', [UserManagementPageController::class, 'destroy'])->name('users.destroy');
+
+        Route::post('/users/{id}/vps-access', [UserAccessController::class, 'grant'])->name('users.vps.grant');
+        Route::delete('/users/{id}/vps-access/{vpsId}', [UserAccessController::class, 'revoke'])->name('users.vps.revoke');
+        Route::put('/users/{id}/vps-access/{vpsId}/permissions', [UserAccessController::class, 'updatePermissions'])->name('users.vps.permissions');
 
         Route::get('/ops/health', [OpsPageController::class, 'health'])->name('ops.health');
         Route::get('/ops/quota', [OpsPageController::class, 'quota'])->name('ops.quota');

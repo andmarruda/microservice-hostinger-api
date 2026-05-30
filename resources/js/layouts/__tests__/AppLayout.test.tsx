@@ -111,7 +111,7 @@ describe('AppLayout', () => {
     });
 
     it('shows Operations nav group for root users', () => {
-        mockPageData({ roles: ['root'] });
+        mockPageData({ roles: ['admin'] });
         render(
             <AppLayout>
                 <p>x</p>

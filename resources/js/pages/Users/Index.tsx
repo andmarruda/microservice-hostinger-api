@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
+import { Select } from '@/components/ui/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import { usePermission } from '@/hooks/usePermission';
 import AppLayout from '@/layouts/AppLayout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
 
 interface UserRow {
@@ -15,7 +16,7 @@ interface UserRow {
     name: string;
     email: string;
     email_verified_at: string | null;
-    is_manager: boolean;
+    role: string;
     created_at: string;
 }
 
@@ -24,7 +25,7 @@ interface Props {
 }
 
 export default function UsersIndex({ users }: Props) {
-    const { can, isRoot } = usePermission();
+    const { isAdmin } = usePermission();
 
     const [inviteOpen, setInviteOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
@@ -36,7 +37,7 @@ export default function UsersIndex({ users }: Props) {
         email: '',
         password: '',
         password_confirmation: '',
-        is_manager: false,
+        role: 'user' as 'admin' | 'user',
     });
 
     function handleInvite(e: FormEvent) {
@@ -66,16 +67,12 @@ export default function UsersIndex({ users }: Props) {
             <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">Users</h2>
                 <div className="flex gap-2">
-                    {can('Manage.Invite.user') && (
-                        <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                            Invite User
-                        </Button>
-                    )}
-                    {isRoot() && (
-                        <Button onClick={() => setCreateOpen(true)}>
-                            Create User
-                        </Button>
-                    )}
+                    <Button variant="outline" onClick={() => setInviteOpen(true)}>
+                        Invite User
+                    </Button>
+                    <Button onClick={() => setCreateOpen(true)}>
+                        Create User
+                    </Button>
                 </div>
             </div>
 
@@ -88,12 +85,13 @@ export default function UsersIndex({ users }: Props) {
                             <TableHead>Status</TableHead>
                             <TableHead>Role</TableHead>
                             <TableHead>Created</TableHead>
+                            <TableHead></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {users.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={5} className="py-8 text-center text-gray-400">
+                                <TableCell colSpan={6} className="py-8 text-center text-gray-400">
                                     No users found.
                                 </TableCell>
                             </TableRow>
@@ -108,12 +106,20 @@ export default function UsersIndex({ users }: Props) {
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant={user.is_manager ? 'info' : 'default'}>
-                                        {user.is_manager ? 'Manager' : 'User'}
+                                    <Badge variant={user.role === 'admin' ? 'info' : 'default'}>
+                                        {user.role === 'admin' ? 'Admin' : 'User'}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-xs text-gray-500">
                                     {new Date(user.created_at).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                    <Link
+                                        href={`/users/${user.id}`}
+                                        className="text-xs text-blue-600 hover:underline"
+                                    >
+                                        Manage
+                                    </Link>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -216,17 +222,19 @@ export default function UsersIndex({ users }: Props) {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <input
-                                id="create-is-manager"
-                                type="checkbox"
-                                checked={createForm.data.is_manager}
-                                onChange={(e) => createForm.setData('is_manager', e.target.checked)}
-                                className="h-4 w-4 rounded border-gray-300 accent-gray-900"
-                            />
-                            <Label htmlFor="create-is-manager" className="cursor-pointer">
-                                Manager — can invite other users
-                            </Label>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="create-role">Role</Label>
+                            <Select
+                                id="create-role"
+                                value={createForm.data.role}
+                                onChange={(e) => createForm.setData('role', e.target.value as 'admin' | 'user')}
+                            >
+                                <option value="user">User — limited to granted VPS</option>
+                                <option value="admin">Admin — full access</option>
+                            </Select>
+                            {createForm.errors.role && (
+                                <p className="text-xs text-red-600">{createForm.errors.role}</p>
+                            )}
                         </div>
                     </DialogContent>
                     <DialogFooter>
