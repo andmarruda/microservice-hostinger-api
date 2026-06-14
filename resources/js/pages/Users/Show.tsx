@@ -21,6 +21,7 @@ interface UserDetail {
 interface VpsWithGrant {
     id: string;
     hostname: string;
+    display_name?: string;
     status: string;
     ip_address?: string;
     grant_id: number;
@@ -34,6 +35,7 @@ interface VpsWithGrant {
 interface AvailableVps {
     id: string;
     hostname: string;
+    display_name?: string;
     status: string;
     ip_address?: string;
 }
@@ -148,7 +150,7 @@ export default function UsersShow({ user, grantedVps, availableVps }: Props) {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Hostname</TableHead>
+                            <TableHead>VPS</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead>Firewall</TableHead>
                             <TableHead>SSH Keys</TableHead>
@@ -167,7 +169,10 @@ export default function UsersShow({ user, grantedVps, availableVps }: Props) {
                         )}
                         {grantedVps.map((vps) => (
                             <TableRow key={vps.id}>
-                                <TableCell className="font-medium">{vps.hostname}</TableCell>
+                                <TableCell>
+                                    <p className="font-medium text-gray-900">{vps.display_name ?? vps.hostname}</p>
+                                    {vps.display_name && <p className="text-xs text-gray-400">{vps.hostname}</p>}
+                                </TableCell>
                                 <TableCell>
                                     <Badge variant={vps.status === 'running' ? 'success' : 'default'}>
                                         {vps.status}
@@ -237,7 +242,7 @@ export default function UsersShow({ user, grantedVps, availableVps }: Props) {
                                 <option value="">Select a VPS…</option>
                                 {availableVps.map((vps) => (
                                     <option key={vps.id} value={vps.id}>
-                                        {vps.hostname} ({vps.status})
+                                        {vps.display_name ?? vps.hostname} — {vps.ip_address ?? vps.hostname} ({vps.status})
                                     </option>
                                 ))}
                             </Select>

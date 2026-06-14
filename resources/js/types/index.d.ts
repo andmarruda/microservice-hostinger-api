@@ -34,6 +34,7 @@ export interface SharedData {
 export interface Vps {
     id: string;
     hostname: string;
+    display_name?: string;
     plan: string;
     status: string;
     ip_address: string;

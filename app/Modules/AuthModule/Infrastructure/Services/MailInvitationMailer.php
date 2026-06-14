@@ -14,7 +14,7 @@ class MailInvitationMailer implements InvitationMailerInterface
         $acceptUrl = $this->buildAcceptUrl($invitation);
 
         Mail::to($invitation->email)
-            ->send(new InvitationMail($invitation, $acceptUrl));
+            ->queue(new InvitationMail($invitation, $acceptUrl));
     }
 
     private function buildAcceptUrl(Invitation $invitation): string

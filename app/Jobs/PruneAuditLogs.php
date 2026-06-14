@@ -19,11 +19,9 @@ class PruneAuditLogs implements ShouldQueue
         $retentionDays = (int) config('audit.retention_days', 90);
         $cutoff = now()->subDays($retentionDays);
 
-        InfraAuditLog::where('created_at', '<', $cutoff)
-            ->chunkById(500, fn ($chunk) => $chunk->toQuery()->delete());
+        InfraAuditLog::where('created_at', '<', $cutoff)->delete();
 
-        AuthAuditLog::where('created_at', '<', $cutoff)
-            ->chunkById(500, fn ($chunk) => $chunk->toQuery()->delete());
+        AuthAuditLog::where('created_at', '<', $cutoff)->delete();
 
         // drift_reports — ADR-015: 90-day default
         $driftRetention = (int) env('DRIFT_REPORT_RETENTION_DAYS', 90);

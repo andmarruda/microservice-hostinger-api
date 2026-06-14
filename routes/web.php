@@ -72,6 +72,7 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserManagementPageController::class, 'index'])->name('users.index');
+        Route::get('/users/create', [UserManagementPageController::class, 'create'])->name('users.create');
         Route::post('/users', [UserManagementPageController::class, 'store'])->name('users.store');
         Route::get('/users/{id}', [UserManagementPageController::class, 'show'])->name('users.show');
         Route::delete('/users/{id}', [UserManagementPageController::class, 'destroy'])->name('users.destroy');

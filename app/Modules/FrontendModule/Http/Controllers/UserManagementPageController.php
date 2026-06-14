@@ -40,7 +40,24 @@ class UserManagementPageController extends Controller
         $user = User::with(['roles'])->findOrFail($id);
 
         $allVpsResult = $this->getVpsList->execute($request->user());
-        $allVps = $allVpsResult->success ? $allVpsResult->data : [];
+        $rawVps = $allVpsResult->success ? $allVpsResult->data : [];
+
+        // Normalize API fields and inject display names
+        $vpsIds = array_column($rawVps, 'id');
+        $profiles = VpsProfile::whereIn('vps_id', $vpsIds)->pluck('display_name', 'vps_id');
+
+        $allVps = array_map(function (array $vps) use ($profiles): array {
+            $id        = (string) ($vps['id'] ?? '');
+            $status    = $vps['status'] ?? $vps['state'] ?? 'unknown';
+            $ipAddress = $vps['ip_address'] ?? ($vps['ipv4'][0]['address'] ?? ($vps['ipv4'][0]['ip'] ?? ''));
+            $displayName = $profiles[$id] ?? null;
+            return array_merge($vps, [
+                'id'           => $id,
+                'display_name' => $displayName ?: ($vps['hostname'] ?? $id),
+                'status'       => $status,
+                'ip_address'   => $ipAddress,
+            ]);
+        }, $rawVps);
 
         $grants = VpsAccessGrant::where('user_id', $id)
             ->where(function ($q) {
@@ -91,6 +108,11 @@ class UserManagementPageController extends Controller
             'grantedVps'   => $grantedVps,
             'availableVps' => $availableVps,
         ]);
+    }
+
+    public function create(): Response
+    {
+        return Inertia::render('Users/Create');
     }
 
     public function store(Request $request): RedirectResponse

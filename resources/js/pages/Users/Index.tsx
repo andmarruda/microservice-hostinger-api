@@ -49,9 +49,9 @@ export default function UsersIndex({ users }: Props) {
 
             <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">Users</h2>
-                <Button onClick={() => setCreateOpen(true)}>
-                    Create User
-                </Button>
+                <Link href="/users/create">
+                    <Button>Create User</Button>
+                </Link>
             </div>
 
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm">

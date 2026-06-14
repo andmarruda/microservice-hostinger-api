@@ -12,6 +12,8 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private const ADMIN_PERMISSIONS = [
         'VPS.VirtualMachine.Manage.read',
+        'VPS.VirtualMachine.Manage.details',
+        'VPS.VirtualMachine.Manage.metrics',
         'Manage.Permissions.VPS.all',
         'Manage.Invite.user',
         'Manage.Users.create',

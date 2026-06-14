@@ -4,7 +4,8 @@ import { Input } from '@/components/ui/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import AppLayout from '@/layouts/AppLayout';
 import { Vps } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Pencil, Play, Power, RotateCcw } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
 interface Props {
@@ -18,61 +19,34 @@ function statusVariant(status: string): 'success' | 'warning' | 'destructive' | 
     return 'default';
 }
 
-function VpsActions({ id, status }: { id: string; status: string }) {
-    const { post, processing } = useForm({});
-
-    return (
-        <div className="flex gap-1.5">
-            {status === 'stopped' && (
-                <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={processing}
-                    onClick={() => post(`/vps/${id}/start`)}
-                >
-                    Start
-                </Button>
-            )}
-            {status === 'running' && (
-                <>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={processing}
-                        onClick={() => post(`/vps/${id}/reboot`)}
-                    >
-                        Reboot
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={processing}
-                        onClick={() => post(`/vps/${id}/stop`)}
-                    >
-                        Stop
-                    </Button>
-                </>
-            )}
-        </div>
-    );
+interface EditableVpsNameProps {
+    vps: Vps;
+    editing: boolean;
+    onEditingChange: (v: boolean) => void;
 }
 
-function EditableVpsName({ vps }: { vps: Vps }) {
-    const [editing, setEditing] = useState(false);
-    const { data, setData, put, processing, errors } = useForm({
-        display_name: String(vps.display_name ?? vps.hostname),
+function EditableVpsName({ vps, editing, onEditingChange }: EditableVpsNameProps) {
+    const { data, setData, put, processing, errors, reset } = useForm({
+        display_name: vps.display_name ?? vps.hostname,
     });
 
     function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        put(`/vps/${vps.id}/name`, {
-            onSuccess: () => setEditing(false),
-        });
+        put(`/vps/${vps.id}/name`, { onSuccess: () => onEditingChange(false) });
+    }
+
+    function handleCancel() {
+        reset();
+        onEditingChange(false);
     }
 
     if (editing) {
         return (
-            <form onSubmit={handleSubmit} className="flex min-w-56 items-center gap-2">
+            <form
+                onSubmit={handleSubmit}
+                onClick={(e) => e.stopPropagation()}
+                className="flex min-w-56 items-center gap-2"
+            >
                 <Input
                     aria-label={`Name for ${vps.hostname}`}
                     value={data.display_name}
@@ -81,9 +55,9 @@ function EditableVpsName({ vps }: { vps: Vps }) {
                     className="h-8"
                 />
                 <Button size="sm" type="submit" disabled={processing}>
-                    Confirm
+                    Save
                 </Button>
-                <Button size="sm" type="button" variant="outline" onClick={() => setEditing(false)}>
+                <Button size="sm" type="button" variant="outline" onClick={handleCancel}>
                     Cancel
                 </Button>
                 {errors.display_name && <span className="text-xs text-red-600">{errors.display_name}</span>}
@@ -92,14 +66,90 @@ function EditableVpsName({ vps }: { vps: Vps }) {
     }
 
     return (
-        <button
-            type="button"
-            onDoubleClick={() => setEditing(true)}
-            className="text-left font-medium text-gray-900 hover:underline"
-            title="Double click to edit"
+        <span className="font-medium text-gray-900">{vps.display_name ?? vps.hostname}</span>
+    );
+}
+
+interface VpsActionsProps {
+    id: string;
+    status: string;
+    onRename: () => void;
+}
+
+function VpsActions({ id, status, onRename }: VpsActionsProps) {
+    const { post, processing } = useForm({});
+
+    return (
+        <div className="flex items-center gap-1">
+            <button
+                type="button"
+                title="Rename"
+                onClick={(e) => { e.stopPropagation(); onRename(); }}
+                className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            >
+                <Pencil className="h-4 w-4" />
+            </button>
+
+            {status === 'stopped' && (
+                <button
+                    type="button"
+                    title="Start"
+                    disabled={processing}
+                    onClick={(e) => { e.stopPropagation(); post(`/vps/${id}/start`); }}
+                    className="rounded p-1.5 text-green-600 hover:bg-green-50 hover:text-green-800 disabled:opacity-50"
+                >
+                    <Play className="h-4 w-4" />
+                </button>
+            )}
+
+            {status === 'running' && (
+                <>
+                    <button
+                        type="button"
+                        title="Reboot"
+                        disabled={processing}
+                        onClick={(e) => { e.stopPropagation(); post(`/vps/${id}/reboot`); }}
+                        className="rounded p-1.5 text-yellow-600 hover:bg-yellow-50 hover:text-yellow-800 disabled:opacity-50"
+                    >
+                        <RotateCcw className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        title="Stop"
+                        disabled={processing}
+                        onClick={(e) => { e.stopPropagation(); post(`/vps/${id}/stop`); }}
+                        className="rounded p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                    >
+                        <Power className="h-4 w-4" />
+                    </button>
+                </>
+            )}
+        </div>
+    );
+}
+
+function VpsRow({ v }: { v: Vps }) {
+    const [renaming, setRenaming] = useState(false);
+
+    return (
+        <TableRow
+            key={v.id}
+            className="cursor-pointer hover:bg-gray-50"
+            onClick={() => !renaming && router.visit(`/vps/${v.id}`)}
         >
-            {String(vps.display_name ?? vps.hostname)}
-        </button>
+            <TableCell onClick={(e) => renaming && e.stopPropagation()}>
+                <EditableVpsName vps={v} editing={renaming} onEditingChange={setRenaming} />
+            </TableCell>
+            <TableCell className="text-gray-500">{v.hostname}</TableCell>
+            <TableCell className="text-gray-500">{v.plan}</TableCell>
+            <TableCell className="font-mono text-xs text-gray-500">{v.ip_address}</TableCell>
+            <TableCell>
+                <Badge variant={statusVariant(v.status)}>{v.status}</Badge>
+            </TableCell>
+            <TableCell onClick={(e) => e.stopPropagation()}>
+                <VpsActions id={v.id} status={v.status} onRename={() => setRenaming(true)} />
+            </TableCell>
+        </TableRow>
     );
 }
 
@@ -123,30 +173,13 @@ export default function VpsIndex({ vps }: Props) {
                     <TableBody>
                         {vps.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-400 py-8">
+                                <TableCell colSpan={6} className="py-8 text-center text-gray-400">
                                     No VPS instances found.
                                 </TableCell>
                             </TableRow>
                         )}
                         {vps.map((v) => (
-                            <TableRow key={v.id}>
-                                <TableCell>
-                                    <EditableVpsName vps={v} />
-                                </TableCell>
-                                <TableCell>
-                                    <Link href={`/vps/${v.id}`} className="text-gray-500 hover:underline">
-                                        {v.hostname}
-                                    </Link>
-                                </TableCell>
-                                <TableCell className="text-gray-500">{v.plan}</TableCell>
-                                <TableCell className="font-mono text-xs text-gray-500">{v.ip_address}</TableCell>
-                                <TableCell>
-                                    <Badge variant={statusVariant(v.status)}>{v.status}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <VpsActions id={v.id} status={v.status} />
-                                </TableCell>
-                            </TableRow>
+                            <VpsRow key={v.id} v={v} />
                         ))}
                     </TableBody>
                 </Table>

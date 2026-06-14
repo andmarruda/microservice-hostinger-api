@@ -1,4 +1,4 @@
-import { useForm } from '@inertiajs/react';
+import { router, useForm } from '@inertiajs/react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -47,15 +47,20 @@ describe('VPS Index page', () => {
         expect(screen.getByText('running')).toBeInTheDocument();
     });
 
-    it('shows Reboot and Stop buttons for running VPS', () => {
+    it('shows Reboot and Stop icon buttons for running VPS', () => {
         render(<VpsIndex vps={[runningVps]} />);
         expect(screen.getByRole('button', { name: /reboot/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument();
     });
 
-    it('shows Start button for stopped VPS', () => {
+    it('shows Start icon button for stopped VPS', () => {
         render(<VpsIndex vps={[stoppedVps]} />);
         expect(screen.getByRole('button', { name: /start/i })).toBeInTheDocument();
+    });
+
+    it('shows Rename icon button in actions', () => {
+        render(<VpsIndex vps={[runningVps]} />);
+        expect(screen.getByRole('button', { name: /rename/i })).toBeInTheDocument();
     });
 
     it('calls post with start URL on Start click', async () => {
@@ -67,6 +72,7 @@ describe('VPS Index page', () => {
             put: vi.fn(),
             errors: {},
             processing: false,
+            reset: vi.fn(),
         } as unknown as ReturnType<typeof useForm>);
 
         render(<VpsIndex vps={[stoppedVps]} />);
@@ -83,11 +89,58 @@ describe('VPS Index page', () => {
             put: vi.fn(),
             errors: {},
             processing: false,
+            reset: vi.fn(),
         } as unknown as ReturnType<typeof useForm>);
 
         render(<VpsIndex vps={[runningVps]} />);
         await userEvent.click(screen.getByRole('button', { name: /stop/i }));
         expect(post).toHaveBeenCalledWith('/vps/vps-1/stop');
+    });
+
+    it('navigates to VPS show page when row is clicked', async () => {
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.click(screen.getByText('KVM 2'));
+        expect(vi.mocked(router.visit)).toHaveBeenCalledWith('/vps/vps-1');
+    });
+
+    it('does not navigate when action buttons are clicked', async () => {
+        vi.mocked(router.visit).mockClear();
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.click(screen.getByRole('button', { name: /stop/i }));
+        expect(vi.mocked(router.visit)).not.toHaveBeenCalled();
+    });
+
+    it('does not navigate when Rename button is clicked', async () => {
+        vi.mocked(router.visit).mockClear();
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.click(screen.getByRole('button', { name: /rename/i }));
+        expect(vi.mocked(router.visit)).not.toHaveBeenCalled();
+    });
+
+    it('shows rename form after clicking Rename button', async () => {
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.click(screen.getByRole('button', { name: /rename/i }));
+        expect(screen.getByRole('textbox')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it('calls put with name URL on rename Save', async () => {
+        const put = vi.fn();
+        vi.mocked(useForm).mockReturnValue({
+            data: { display_name: 'Alice dev box' },
+            setData: vi.fn(),
+            post: vi.fn(),
+            put,
+            errors: {},
+            processing: false,
+            reset: vi.fn(),
+        } as unknown as ReturnType<typeof useForm>);
+
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.click(screen.getByRole('button', { name: /rename/i }));
+        await userEvent.click(screen.getByRole('button', { name: /save/i }));
+        expect(put).toHaveBeenCalledWith('/vps/vps-1/name', expect.objectContaining({ onSuccess: expect.any(Function) }));
     });
 
     it('renders multiple VPS', () => {
@@ -99,22 +152,5 @@ describe('VPS Index page', () => {
     it('renders starting status badge', () => {
         render(<VpsIndex vps={[{ ...runningVps, status: 'starting' }]} />);
         expect(screen.getByText('starting')).toBeInTheDocument();
-    });
-
-    it('edits friendly VPS name after double click', async () => {
-        const put = vi.fn();
-        vi.mocked(useForm).mockReturnValue({
-            data: { display_name: 'Alice dev box' },
-            setData: vi.fn(),
-            post: vi.fn(),
-            put,
-            errors: {},
-            processing: false,
-        } as unknown as ReturnType<typeof useForm>);
-
-        render(<VpsIndex vps={[runningVps]} />);
-        await userEvent.dblClick(screen.getByRole('button', { name: /alice dev box/i }));
-        await userEvent.click(screen.getByRole('button', { name: /confirm/i }));
-        expect(put).toHaveBeenCalledWith('/vps/vps-1/name', expect.objectContaining({ onSuccess: expect.any(Function) }));
     });
 });

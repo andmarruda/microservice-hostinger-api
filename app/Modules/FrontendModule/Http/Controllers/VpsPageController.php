@@ -70,7 +70,7 @@ class VpsPageController extends Controller
 
         return Inertia::render('Vps/Show', [
             'vps'     => $vps,
-            'metrics' => $metrics->success ? $metrics->data : [],
+            'metrics' => ($metrics->success && is_array($metrics->data) && !empty($metrics->data)) ? $metrics->data : null,
             'actions' => $actions->success ? $actions->data : [],
             'backups' => $backups->success ? $backups->data : [],
             'sshKeys' => $sshKeys->success ? $sshKeys->data : [],
@@ -255,10 +255,22 @@ class VpsPageController extends Controller
 
     private function withProfile(array $vps, ?string $displayName = null): array
     {
-        $displayName ??= VpsProfile::where('vps_id', $vps['id'] ?? '')->value('display_name');
+        $id = (string) ($vps['id'] ?? '');
+        $displayName ??= VpsProfile::where('vps_id', $id)->value('display_name');
+
+        // Hostinger API field normalisation
+        $status    = $vps['status'] ?? $vps['state'] ?? 'unknown';
+        $ipAddress = $vps['ip_address'] ?? ($vps['ipv4'][0]['address'] ?? ($vps['ipv4'][0]['ip'] ?? ''));
+        $ram       = $vps['ram'] ?? $vps['memory'] ?? null;
+        $os        = $vps['os'] ?? ($vps['template']['name'] ?? null);
 
         return array_merge($vps, [
-            'display_name' => $displayName ?: ($vps['hostname'] ?? $vps['id'] ?? 'VPS'),
+            'id'           => $id,
+            'display_name' => $displayName ?: ($vps['hostname'] ?? $id ?: 'VPS'),
+            'status'       => $status,
+            'ip_address'   => $ipAddress,
+            'ram'          => $ram,
+            'os'           => $os,
         ]);
     }
 }
