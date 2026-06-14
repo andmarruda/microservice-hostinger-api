@@ -75,7 +75,7 @@ describe('AppLayout', () => {
 
     it('shows permitted navigation groups for regular users', () => {
         mockPageData({
-            permissions: ['VPS.VirtualMachine.Manage.read', 'Domains.Availability.validate'],
+            permissions: ['VPS.VirtualMachine.Manage.read'],
         });
         render(
             <AppLayout>
@@ -83,9 +83,9 @@ describe('AppLayout', () => {
             </AppLayout>,
         );
         expect(screen.getByText('Infrastructure')).toBeInTheDocument();
-        expect(screen.getByText('Services')).toBeInTheDocument();
         expect(screen.getByText('VPS')).toBeInTheDocument();
-        expect(screen.getByText('Domains')).toBeInTheDocument();
+        expect(screen.queryByText('Services')).not.toBeInTheDocument();
+        expect(screen.queryByText('Domains')).not.toBeInTheDocument();
     });
 
     it('hides service links without matching permissions', () => {
@@ -100,24 +100,28 @@ describe('AppLayout', () => {
         expect(screen.queryByText('Domains')).not.toBeInTheDocument();
     });
 
-    it('hides Operations nav group for non-root users', () => {
+    it('hides Governance nav group for non-root users', () => {
         mockPageData({ roles: [] });
         render(
             <AppLayout>
                 <p>x</p>
             </AppLayout>,
         );
-        expect(screen.queryByText('Operations')).not.toBeInTheDocument();
+        expect(screen.queryByText('Governance')).not.toBeInTheDocument();
     });
 
-    it('shows Operations nav group for root users', () => {
+    it('shows VPS access governance for root users', () => {
         mockPageData({ roles: ['admin'] });
         render(
             <AppLayout>
                 <p>x</p>
             </AppLayout>,
         );
-        expect(screen.getByText('Operations')).toBeInTheDocument();
+        expect(screen.getByText('Governance')).toBeInTheDocument();
+        expect(screen.getByText('VPS Access')).toBeInTheDocument();
+        expect(screen.queryByText('Operations')).not.toBeInTheDocument();
+        expect(screen.queryByText('Audit Export')).not.toBeInTheDocument();
+        expect(screen.queryByText('Approvals')).not.toBeInTheDocument();
     });
 
     it('shows success flash message', () => {

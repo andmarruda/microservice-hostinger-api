@@ -1,9 +1,11 @@
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
 import AppLayout from '@/layouts/AppLayout';
 import { Vps } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 
 interface Props {
     vps: Vps[];
@@ -55,6 +57,52 @@ function VpsActions({ id, status }: { id: string; status: string }) {
     );
 }
 
+function EditableVpsName({ vps }: { vps: Vps }) {
+    const [editing, setEditing] = useState(false);
+    const { data, setData, put, processing, errors } = useForm({
+        display_name: String(vps.display_name ?? vps.hostname),
+    });
+
+    function handleSubmit(e: FormEvent) {
+        e.preventDefault();
+        put(`/vps/${vps.id}/name`, {
+            onSuccess: () => setEditing(false),
+        });
+    }
+
+    if (editing) {
+        return (
+            <form onSubmit={handleSubmit} className="flex min-w-56 items-center gap-2">
+                <Input
+                    aria-label={`Name for ${vps.hostname}`}
+                    value={data.display_name}
+                    onChange={(e) => setData('display_name', e.target.value)}
+                    autoFocus
+                    className="h-8"
+                />
+                <Button size="sm" type="submit" disabled={processing}>
+                    Confirm
+                </Button>
+                <Button size="sm" type="button" variant="outline" onClick={() => setEditing(false)}>
+                    Cancel
+                </Button>
+                {errors.display_name && <span className="text-xs text-red-600">{errors.display_name}</span>}
+            </form>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onDoubleClick={() => setEditing(true)}
+            className="text-left font-medium text-gray-900 hover:underline"
+            title="Double click to edit"
+        >
+            {String(vps.display_name ?? vps.hostname)}
+        </button>
+    );
+}
+
 export default function VpsIndex({ vps }: Props) {
     return (
         <AppLayout title="VPS">
@@ -83,14 +131,13 @@ export default function VpsIndex({ vps }: Props) {
                         {vps.map((v) => (
                             <TableRow key={v.id}>
                                 <TableCell>
-                                    <Link
-                                        href={`/vps/${v.id}`}
-                                        className="font-medium text-gray-900 hover:underline"
-                                    >
+                                    <EditableVpsName vps={v} />
+                                </TableCell>
+                                <TableCell>
+                                    <Link href={`/vps/${v.id}`} className="text-gray-500 hover:underline">
                                         {v.hostname}
                                     </Link>
                                 </TableCell>
-                                <TableCell className="text-gray-500">{v.hostname}</TableCell>
                                 <TableCell className="text-gray-500">{v.plan}</TableCell>
                                 <TableCell className="font-mono text-xs text-gray-500">{v.ip_address}</TableCell>
                                 <TableCell>

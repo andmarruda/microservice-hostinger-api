@@ -4,7 +4,6 @@ namespace App\Modules\FrontendModule\Http\Controllers;
 
 use App\Modules\AuthModule\Infrastructure\Mail\WelcomeMail;
 use App\Modules\AuthModule\Models\User;
-use App\Modules\AuthModule\UseCases\InviteUser\InviteUser;
 use App\Modules\HostingerProxyModule\UseCases\GetVpsList\GetVpsList;
 use App\Modules\SecurityResourceModule\Models\SecurityPermission;
 use App\Modules\VpsModule\Models\VpsAccessGrant;
@@ -19,7 +18,6 @@ use Inertia\Response;
 class UserManagementPageController extends Controller
 {
     public function __construct(
-        private InviteUser $inviteUser,
         private GetVpsList $getVpsList,
     ) {}
 
@@ -93,30 +91,6 @@ class UserManagementPageController extends Controller
             'grantedVps'   => $grantedVps,
             'availableVps' => $availableVps,
         ]);
-    }
-
-    public function invite(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'email' => ['required', 'email', 'max:255'],
-        ]);
-
-        $result = $this->inviteUser->execute(
-            inviter: $request->user(),
-            email: $validated['email'],
-            ipAddress: $request->ip(),
-            userAgent: $request->userAgent(),
-        );
-
-        if (! $result->success) {
-            return back()->withErrors(['email' => match ($result->error) {
-                'forbidden'                => 'You do not have permission to invite users.',
-                'email_already_registered' => 'This email is already registered.',
-                default                    => 'Failed to send invitation.',
-            }]);
-        }
-
-        return back()->with('success', "Invitation sent to {$validated['email']}.");
     }
 
     public function store(Request $request): RedirectResponse

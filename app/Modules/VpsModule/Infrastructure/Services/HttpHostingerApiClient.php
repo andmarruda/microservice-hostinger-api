@@ -32,13 +32,23 @@ class HttpHostingerApiClient implements HostingerApiClientInterface
         return $this->call('POST', "/api/vps/v1/virtual-machines/{$vpsId}/restart", $correlationId);
     }
 
-    private function call(string $method, string $path, string $correlationId): HostingerApiResult
+    public function changePassword(string $vpsId, string $password, string $correlationId): HostingerApiResult
+    {
+        return $this->call('POST', "/api/vps/v1/virtual-machines/{$vpsId}/password", $correlationId, [
+            'password' => $password,
+        ]);
+    }
+
+    private function call(string $method, string $path, string $correlationId, array $body = []): HostingerApiResult
     {
         try {
-            $response = Http::withToken($this->apiToken)
+            $request = Http::withToken($this->apiToken)
                 ->withHeaders(['X-Correlation-ID' => $correlationId])
-                ->retry(3, 200)
-                ->send($method, $this->baseUrl . $path);
+                ->retry(3, 200);
+
+            $response = empty($body)
+                ? $request->send($method, $this->baseUrl . $path)
+                : $request->send($method, $this->baseUrl . $path, ['json' => $body]);
 
             if ($response->successful()) {
                 return HostingerApiResult::success($correlationId);

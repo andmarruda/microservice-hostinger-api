@@ -27,42 +27,11 @@ const NAV: NavGroup[] = [
         ],
     },
     {
-        title: 'Services',
-        items: [
-            {
-                label: 'Domains',
-                href: '/domains',
-                match: '/domains',
-                permissions: ['Domains.Portfolio.Manage.read', 'Domains.Portfolio.Details', 'Domains.Availability.validate'],
-            },
-            { label: 'DNS', href: '/dns/example.com', match: '/dns', permissions: ['DNS.Zone.read'] },
-            { label: 'Billing', href: '/billing', match: '/billing', permissions: ['Billing.getCatalog', 'Orders.Subscriptions.read'] },
-        ],
-    },
-    {
-        title: 'Administration',
-        rootOnly: true,
-        items: [
-            { label: 'Users', href: '/users', match: '/users' },
-        ],
-    },
-    {
         title: 'Governance',
         rootOnly: true,
         items: [
+            { label: 'VPS Access', href: '/users', match: '/users' },
             { label: 'Access Reviews', href: '/governance/reviews', match: '/governance/reviews' },
-            { label: 'Audit Export', href: '/governance/audit', match: '/governance/audit' },
-            { label: 'Approvals', href: '/governance/approvals', match: '/governance/approvals' },
-        ],
-    },
-    {
-        title: 'Operations',
-        rootOnly: true,
-        items: [
-            { label: 'Health', href: '/ops/health' },
-            { label: 'Quota', href: '/ops/quota' },
-            { label: 'Cache', href: '/ops/cache' },
-            { label: 'Database', href: '/ops/database' },
         ],
     },
 ];

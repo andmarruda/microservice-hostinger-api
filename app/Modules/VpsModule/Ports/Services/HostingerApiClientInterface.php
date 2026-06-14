@@ -9,4 +9,6 @@ interface HostingerApiClientInterface
     public function stopVps(string $vpsId, string $correlationId): HostingerApiResult;
 
     public function rebootVps(string $vpsId, string $correlationId): HostingerApiResult;
+
+    public function changePassword(string $vpsId, string $password, string $correlationId): HostingerApiResult;
 }

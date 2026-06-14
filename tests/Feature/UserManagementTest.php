@@ -17,6 +17,7 @@ class UserManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutVite();
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
@@ -103,33 +104,6 @@ class UserManagementTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors('email');
-    }
-
-    // ── Admin: invite user ────────────────────────────────────────────────────
-
-    public function test_admin_can_invite_user(): void
-    {
-        Mail::fake();
-        $admin = User::factory()->admin()->create();
-
-        $response = $this->actingAs($admin)->post('/users/invite', [
-            'email' => 'invited@example.com',
-        ]);
-
-        $response->assertRedirect();
-        $response->assertSessionHas('success');
-        $this->assertDatabaseHas('invitations', ['email' => 'invited@example.com']);
-    }
-
-    public function test_regular_user_cannot_invite(): void
-    {
-        $user = User::factory()->regularUser()->create();
-
-        $response = $this->actingAs($user)->post('/users/invite', [
-            'email' => 'invited@example.com',
-        ]);
-
-        $response->assertForbidden();
     }
 
     // ── Admin: list and show users ────────────────────────────────────────────

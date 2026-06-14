@@ -7,6 +7,7 @@ import VpsIndex from '../Index';
 const runningVps = {
     id: 'vps-1',
     hostname: 'web-server-01',
+    display_name: 'Alice dev box',
     plan: 'KVM 2',
     status: 'running',
     ip_address: '192.168.1.1',
@@ -63,9 +64,10 @@ describe('VPS Index page', () => {
             data: {},
             setData: vi.fn(),
             post,
+            put: vi.fn(),
             errors: {},
             processing: false,
-        } as ReturnType<typeof useForm>);
+        } as unknown as ReturnType<typeof useForm>);
 
         render(<VpsIndex vps={[stoppedVps]} />);
         await userEvent.click(screen.getByRole('button', { name: /start/i }));
@@ -78,9 +80,10 @@ describe('VPS Index page', () => {
             data: {},
             setData: vi.fn(),
             post,
+            put: vi.fn(),
             errors: {},
             processing: false,
-        } as ReturnType<typeof useForm>);
+        } as unknown as ReturnType<typeof useForm>);
 
         render(<VpsIndex vps={[runningVps]} />);
         await userEvent.click(screen.getByRole('button', { name: /stop/i }));
@@ -96,5 +99,22 @@ describe('VPS Index page', () => {
     it('renders starting status badge', () => {
         render(<VpsIndex vps={[{ ...runningVps, status: 'starting' }]} />);
         expect(screen.getByText('starting')).toBeInTheDocument();
+    });
+
+    it('edits friendly VPS name after double click', async () => {
+        const put = vi.fn();
+        vi.mocked(useForm).mockReturnValue({
+            data: { display_name: 'Alice dev box' },
+            setData: vi.fn(),
+            post: vi.fn(),
+            put,
+            errors: {},
+            processing: false,
+        } as unknown as ReturnType<typeof useForm>);
+
+        render(<VpsIndex vps={[runningVps]} />);
+        await userEvent.dblClick(screen.getByRole('button', { name: /alice dev box/i }));
+        await userEvent.click(screen.getByRole('button', { name: /confirm/i }));
+        expect(put).toHaveBeenCalledWith('/vps/vps-1/name', expect.objectContaining({ onSuccess: expect.any(Function) }));
     });
 });

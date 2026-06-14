@@ -34,7 +34,11 @@ const backups = [
     { id: 'b2', created_at: '2024-01-02', size: 1024 * 1024 * 200, state: 'pending' },
 ];
 
-const defaultProps = { vps, metrics, actions, backups };
+const sshKeys = [
+    { id: 'key-1', name: 'anderson-laptop', fingerprint: 'SHA256:abc', created_at: '2024-01-01' },
+];
+
+const defaultProps = { vps, metrics, actions, backups, sshKeys };
 
 describe('VPS Show page', () => {
     it('renders hostname in header', () => {
@@ -69,17 +73,21 @@ describe('VPS Show page', () => {
         expect(screen.getByText(/no metrics available/i)).toBeInTheDocument();
     });
 
-    it('switches to Actions tab', async () => {
+    it('switches to Edit tab', async () => {
         render(<VpsShow {...defaultProps} />);
-        await userEvent.click(screen.getByRole('button', { name: /^actions$/i }));
-        expect(screen.getByText('start')).toBeInTheDocument();
-        expect(screen.getByText('reboot')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+        expect(screen.getByText('Access')).toBeInTheDocument();
+        expect(screen.getAllByText('Dashboard').length).toBeGreaterThan(0);
+        expect(screen.getByLabelText(/ssh key name/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/new password/i)).toBeInTheDocument();
     });
 
-    it('shows "No actions recorded" when empty', async () => {
-        render(<VpsShow {...defaultProps} actions={[]} />);
-        await userEvent.click(screen.getByRole('button', { name: /^actions$/i }));
-        expect(screen.getByText(/no actions recorded/i)).toBeInTheDocument();
+    it('renders SSH keys in Edit tab', async () => {
+        render(<VpsShow {...defaultProps} />);
+        await userEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+        expect(screen.getByText('anderson-laptop')).toBeInTheDocument();
+        expect(screen.getByText('SHA256:abc')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /remove/i })).toBeInTheDocument();
     });
 
     it('switches to Backups tab', async () => {

@@ -1,4 +1,3 @@
-import { Alert } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
@@ -6,7 +5,6 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Select } from '@/components/ui/Select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/Table';
-import { usePermission } from '@/hooks/usePermission';
 import AppLayout from '@/layouts/AppLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEvent, useState } from 'react';
@@ -25,12 +23,7 @@ interface Props {
 }
 
 export default function UsersIndex({ users }: Props) {
-    const { isAdmin } = usePermission();
-
-    const [inviteOpen, setInviteOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
-
-    const inviteForm = useForm({ email: '' });
 
     const createForm = useForm({
         name: '',
@@ -39,16 +32,6 @@ export default function UsersIndex({ users }: Props) {
         password_confirmation: '',
         role: 'user' as 'admin' | 'user',
     });
-
-    function handleInvite(e: FormEvent) {
-        e.preventDefault();
-        inviteForm.post('/users/invite', {
-            onSuccess: () => {
-                setInviteOpen(false);
-                inviteForm.reset();
-            },
-        });
-    }
 
     function handleCreate(e: FormEvent) {
         e.preventDefault();
@@ -66,14 +49,9 @@ export default function UsersIndex({ users }: Props) {
 
             <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">Users</h2>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setInviteOpen(true)}>
-                        Invite User
-                    </Button>
-                    <Button onClick={() => setCreateOpen(true)}>
-                        Create User
-                    </Button>
-                </div>
+                <Button onClick={() => setCreateOpen(true)}>
+                    Create User
+                </Button>
             </div>
 
             <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -126,39 +104,6 @@ export default function UsersIndex({ users }: Props) {
                     </TableBody>
                 </Table>
             </div>
-
-            {/* Invite User Dialog */}
-            <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)}>
-                <DialogHeader>
-                    <DialogTitle>Invite User</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleInvite}>
-                    <DialogContent className="space-y-4">
-                        {inviteForm.errors.email && (
-                            <Alert variant="destructive">{inviteForm.errors.email}</Alert>
-                        )}
-                        <div className="space-y-1.5">
-                            <Label htmlFor="invite-email">Email</Label>
-                            <Input
-                                id="invite-email"
-                                type="email"
-                                autoComplete="off"
-                                value={inviteForm.data.email}
-                                onChange={(e) => inviteForm.setData('email', e.target.value)}
-                                placeholder="user@example.com"
-                            />
-                        </div>
-                    </DialogContent>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={inviteForm.processing}>
-                            {inviteForm.processing ? 'Sending…' : 'Send Invitation'}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Dialog>
 
             {/* Create User Dialog (root only) */}
             <Dialog open={createOpen} onClose={() => setCreateOpen(false)} className="max-w-lg">

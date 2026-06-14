@@ -1,9 +1,12 @@
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import AppLayout from '@/layouts/AppLayout';
-import { Vps } from '@/types';
-import { Head, Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { SshKey, Vps } from '@/types';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { FormEvent, useState } from 'react';
 
 interface Metric {
     cpu_usage: number;
@@ -33,9 +36,10 @@ interface Props {
     metrics: Metric | null;
     actions: Action[];
     backups: Backup[];
+    sshKeys: SshKey[];
 }
 
-type Tab = 'details' | 'metrics' | 'actions' | 'backups';
+type Tab = 'details' | 'metrics' | 'edit' | 'backups';
 
 function statusVariant(status: string): 'success' | 'warning' | 'destructive' | 'default' {
     if (status === 'running') return 'success';
@@ -61,13 +65,24 @@ function GaugeBar({ label, value }: { label: string; value: number }) {
     );
 }
 
-export default function VpsShow({ vps, metrics, actions, backups }: Props) {
+export default function VpsShow({ vps, metrics, backups, sshKeys }: Props) {
     const [tab, setTab] = useState<Tab>('details');
+    const detailRows: [string, string][] = [
+        ['Name', String(vps.display_name ?? vps.hostname)],
+        ['Hostname', vps.hostname],
+        ['Plan', vps.plan],
+        ['IP Address', vps.ip_address],
+        ['Region', String(vps.region ?? '—')],
+        ['OS', String(vps.os ?? '—')],
+        ['CPUs', String(vps.cpus ?? '—')],
+        ['RAM (MB)', String(vps.ram ?? '—')],
+        ['Disk (GB)', String(vps.disk ?? '—')],
+    ];
 
     const tabs: { key: Tab; label: string }[] = [
         { key: 'details', label: 'Details' },
         { key: 'metrics', label: 'Metrics' },
-        { key: 'actions', label: 'Actions' },
+        { key: 'edit', label: 'Edit' },
         { key: 'backups', label: 'Backups' },
     ];
 
@@ -105,16 +120,7 @@ export default function VpsShow({ vps, metrics, actions, backups }: Props) {
                 <Card>
                     <CardHeader><CardTitle>VPS Details</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                        {[
-                            ['Hostname', vps.hostname],
-                            ['Plan', vps.plan],
-                            ['IP Address', vps.ip_address],
-                            ['Region', vps.region ?? '—'],
-                            ['OS', vps.os ?? '—'],
-                            ['CPUs', vps.cpus ?? '—'],
-                            ['RAM (MB)', vps.ram ?? '—'],
-                            ['Disk (GB)', vps.disk ?? '—'],
-                        ].map(([label, val]) => (
+                        {detailRows.map(([label, val]) => (
                             <div key={String(label)} className="flex items-center justify-between text-sm">
                                 <span className="text-gray-500">{label}</span>
                                 <span className="font-medium text-gray-900">{val}</span>
@@ -155,28 +161,7 @@ export default function VpsShow({ vps, metrics, actions, backups }: Props) {
                 </Card>
             )}
 
-            {tab === 'actions' && (
-                <Card>
-                    <CardHeader><CardTitle>Recent Actions</CardTitle></CardHeader>
-                    <CardContent>
-                        {actions.length === 0 ? (
-                            <p className="text-sm text-gray-400">No actions recorded.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {actions.map((a) => (
-                                    <div key={a.id} className="flex items-center justify-between text-sm">
-                                        <span className="font-medium text-gray-900">{a.type}</span>
-                                        <Badge variant={a.state === 'success' ? 'success' : a.state === 'error' ? 'destructive' : 'default'}>
-                                            {a.state}
-                                        </Badge>
-                                        <span className="text-gray-400">{a.started_at}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
+            {tab === 'edit' && <VpsEditPanel vps={vps} sshKeys={sshKeys} metrics={metrics} />}
 
             {tab === 'backups' && (
                 <Card>
@@ -199,5 +184,149 @@ export default function VpsShow({ vps, metrics, actions, backups }: Props) {
                 </Card>
             )}
         </AppLayout>
+    );
+}
+
+function VpsEditPanel({ vps, sshKeys, metrics }: { vps: Vps; sshKeys: SshKey[]; metrics: Metric | null }) {
+    const sshForm = useForm({
+        key_name: '',
+        public_key: '',
+    });
+    const passwordForm = useForm({
+        password: '',
+        password_confirmation: '',
+    });
+    const removeForm = useForm({});
+
+    function handleAddSshKey(e: FormEvent) {
+        e.preventDefault();
+        sshForm.post(`/vps/${vps.id}/ssh-keys`, {
+            onSuccess: () => sshForm.reset(),
+        });
+    }
+
+    function handlePasswordChange(e: FormEvent) {
+        e.preventDefault();
+        passwordForm.put(`/vps/${vps.id}/password`, {
+            onSuccess: () => passwordForm.reset(),
+        });
+    }
+
+    function handleRemoveSshKey(keyId: string | number) {
+        removeForm.post(`/vps/${vps.id}/ssh-keys/${keyId}/remove`);
+    }
+
+    return (
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+            <Card>
+                <CardHeader><CardTitle>Access</CardTitle></CardHeader>
+                <CardContent className="space-y-5">
+                    <form onSubmit={handleAddSshKey} className="space-y-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="ssh-key-name">SSH key name</Label>
+                            <Input
+                                id="ssh-key-name"
+                                value={sshForm.data.key_name}
+                                onChange={(e) => sshForm.setData('key_name', e.target.value)}
+                                placeholder="anderson-laptop"
+                            />
+                            {sshForm.errors.key_name && <p className="text-xs text-red-600">{sshForm.errors.key_name}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="ssh-public-key">Public key</Label>
+                            <textarea
+                                id="ssh-public-key"
+                                value={sshForm.data.public_key}
+                                onChange={(e) => sshForm.setData('public_key', e.target.value)}
+                                className="min-h-24 w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs shadow-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900"
+                                placeholder="ssh-ed25519 AAAA..."
+                            />
+                            {sshForm.errors.public_key && <p className="text-xs text-red-600">{sshForm.errors.public_key}</p>}
+                        </div>
+                        <Button type="submit" disabled={sshForm.processing}>Add SSH Key</Button>
+                    </form>
+
+                    <div className="space-y-2 border-t border-gray-100 pt-4">
+                        {sshKeys.length === 0 ? (
+                            <p className="text-sm text-gray-400">No SSH keys returned for this VPS.</p>
+                        ) : (
+                            sshKeys.map((key) => (
+                                <div key={key.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-medium text-gray-900">{key.name}</p>
+                                        <p className="truncate font-mono text-xs text-gray-500">{key.fingerprint}</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="destructive"
+                                        disabled={removeForm.processing}
+                                        onClick={() => handleRemoveSshKey(key.id)}
+                                    >
+                                        Remove
+                                    </Button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Dashboard</CardTitle></CardHeader>
+                <CardContent className="space-y-5">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                        <DashboardStat label="Status" value={vps.status} />
+                        <DashboardStat label="IP" value={vps.ip_address} />
+                        <DashboardStat label="Region" value={String(vps.region ?? '—')} />
+                        <DashboardStat label="OS" value={String(vps.os ?? '—')} />
+                        <DashboardStat label="CPU" value={vps.cpus ? `${vps.cpus} cores` : '—'} />
+                        <DashboardStat label="RAM" value={vps.ram ? `${vps.ram} MB` : '—'} />
+                    </div>
+
+                    {metrics && (
+                        <div className="space-y-3 border-t border-gray-100 pt-4">
+                            <GaugeBar label="CPU" value={metrics.cpu_usage} />
+                            <GaugeBar label="Memory" value={metrics.memory_usage} />
+                            <GaugeBar label="Disk" value={metrics.disk_usage} />
+                        </div>
+                    )}
+
+                    <form onSubmit={handlePasswordChange} className="space-y-3 border-t border-gray-100 pt-4">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="vps-password">New password</Label>
+                            <Input
+                                id="vps-password"
+                                type="password"
+                                autoComplete="new-password"
+                                value={passwordForm.data.password}
+                                onChange={(e) => passwordForm.setData('password', e.target.value)}
+                            />
+                            {passwordForm.errors.password && <p className="text-xs text-red-600">{passwordForm.errors.password}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="vps-password-confirmation">Confirm password</Label>
+                            <Input
+                                id="vps-password-confirmation"
+                                type="password"
+                                autoComplete="new-password"
+                                value={passwordForm.data.password_confirmation}
+                                onChange={(e) => passwordForm.setData('password_confirmation', e.target.value)}
+                            />
+                        </div>
+                        <Button type="submit" disabled={passwordForm.processing}>Change Password</Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function DashboardStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-md border border-gray-200 p-3">
+            <p className="text-xs text-gray-500">{label}</p>
+            <p className="mt-1 truncate font-medium text-gray-900">{value}</p>
+        </div>
     );
 }

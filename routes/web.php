@@ -38,6 +38,10 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/vps/{id}/firewall', [VpsPageController::class, 'firewall'])->name('vps.firewall');
     Route::get('/vps/{id}/ssh-keys', [VpsPageController::class, 'sshKeys'])->name('vps.ssh-keys');
     Route::get('/vps/{id}/snapshots', [VpsPageController::class, 'snapshots'])->name('vps.snapshots');
+    Route::put('/vps/{id}/name', [VpsPageController::class, 'updateName'])->name('vps.name.update');
+    Route::put('/vps/{id}/password', [VpsPageController::class, 'updatePassword'])->name('vps.password.update');
+    Route::post('/vps/{id}/ssh-keys', [VpsPageController::class, 'storeSshKey'])->name('vps.ssh-keys.store');
+    Route::post('/vps/{id}/ssh-keys/{keyId}/remove', [VpsPageController::class, 'destroySshKey'])->name('vps.ssh-keys.destroy');
     Route::post('/vps/{id}/start', [VpsPageController::class, 'start'])->name('vps.start');
     Route::post('/vps/{id}/stop', [VpsPageController::class, 'stop'])->name('vps.stop');
     Route::post('/vps/{id}/reboot', [VpsPageController::class, 'reboot'])->name('vps.reboot');
@@ -69,7 +73,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/users', [UserManagementPageController::class, 'index'])->name('users.index');
         Route::post('/users', [UserManagementPageController::class, 'store'])->name('users.store');
-        Route::post('/users/invite', [UserManagementPageController::class, 'invite'])->name('users.invite');
         Route::get('/users/{id}', [UserManagementPageController::class, 'show'])->name('users.show');
         Route::delete('/users/{id}', [UserManagementPageController::class, 'destroy'])->name('users.destroy');
 
