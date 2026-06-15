@@ -45,7 +45,6 @@ Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['auth:sa
         Route::get('/', [VpsReadController::class, 'index'])->name('index');
         Route::get('/os-templates', [VpsReadController::class, 'osTemplates'])->name('os-templates');
         Route::get('/data-centers', [VpsReadController::class, 'datacenters'])->name('data-centers');
-        Route::get('/{vpsId}', [VpsReadController::class, 'show'])->name('show');
         Route::get('/{vpsId}/metrics', [VpsReadController::class, 'metrics'])->name('metrics');
         Route::get('/{vpsId}/actions', [VpsReadController::class, 'actions'])->name('actions');
         Route::get('/{vpsId}/backups', [VpsReadController::class, 'backups'])->name('backups');
@@ -53,5 +52,6 @@ Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.', 'middleware' => ['auth:sa
         Route::get('/{vpsId}/public-keys', [VpsReadController::class, 'sshKeys'])->name('public-keys');
         Route::get('/{vpsId}/snapshots', [VpsReadController::class, 'snapshots'])->name('snapshots');
         Route::get('/{vpsId}/post-install-scripts', [VpsReadController::class, 'postInstallScripts'])->name('post-install-scripts');
+        Route::get('/{vpsId}', [VpsReadController::class, 'show'])->name('show');
     });
 });

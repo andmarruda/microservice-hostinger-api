@@ -5,6 +5,7 @@ namespace App\Modules\HostingerProxyModule\Tests\Feature;
 use App\Modules\AuthModule\Models\User;
 use App\Modules\VpsModule\Models\VpsAccessGrant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
@@ -18,10 +19,12 @@ class VpsReadControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
+        config(['services.hostinger.base_url' => 'https://developers.hostinger.com']);
 
         Http::fake([
             '*/virtual-machines' => Http::response([['id' => 'vps-abc-123', 'name' => 'My VPS']], 200),
-            '*/virtual-machines/*' => Http::response(['id' => 'vps-abc-123', 'name' => 'My VPS'], 200),
+            "*/virtual-machines/{$this->vpsId}" => Http::response(['id' => 'vps-abc-123', 'name' => 'My VPS'], 200),
             '*/os-templates' => Http::response([['id' => 'ubuntu-22', 'name' => 'Ubuntu 22.04']], 200),
             '*/data-centers' => Http::response([['id' => 'eu-west', 'name' => 'EU West']], 200),
         ]);
@@ -74,6 +77,34 @@ class VpsReadControllerTest extends TestCase
         $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}");
 
         $response->assertStatus(200)->assertJsonStructure(['data']);
+    }
+
+    public function test_user_with_access_can_get_vps_public_keys(): void
+    {
+        Http::fake([
+            "*/virtual-machines/{$this->vpsId}/public-keys" => Http::response([
+                'data' => [
+                    [
+                        'uuid' => 'key-1',
+                        'label' => 'Anderson laptop',
+                        'finger_print' => 'SHA256:abc123',
+                        'createdAt' => '2026-06-15T12:00:00Z',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $user = $this->userWithPermission('VPS.VirtualMachine.PublicKeys.read');
+        VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
+
+        $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}/public-keys");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.0.id', 'key-1')
+            ->assertJsonPath('data.0.name', 'Anderson laptop')
+            ->assertJsonPath('data.0.fingerprint', 'SHA256:abc123');
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), "/virtual-machines/{$this->vpsId}/public-keys"));
     }
 
     public function test_user_without_access_grant_cannot_get_vps_details(): void

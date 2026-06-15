@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\Http;
 class HttpHostingerApiClient implements HostingerApiClientInterface
 {
     private string $baseUrl;
+
     private string $apiToken;
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('services.hostinger.base_url', 'https://developers.hostinger.com'), '/');
+        $this->baseUrl = rtrim(config('services.hostinger.base_url') ?: 'https://developers.hostinger.com', '/');
         $this->apiToken = config('services.hostinger.api_token', '');
     }
 
@@ -47,8 +48,8 @@ class HttpHostingerApiClient implements HostingerApiClientInterface
                 ->retry(3, 200);
 
             $response = empty($body)
-                ? $request->send($method, $this->baseUrl . $path)
-                : $request->send($method, $this->baseUrl . $path, ['json' => $body]);
+                ? $request->send($method, $this->baseUrl.$path)
+                : $request->send($method, $this->baseUrl.$path, ['json' => $body]);
 
             if ($response->successful()) {
                 return HostingerApiResult::success($correlationId);

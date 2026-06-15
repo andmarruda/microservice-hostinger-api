@@ -21,6 +21,7 @@ use App\Modules\VpsModule\UseCases\StopVps\StopVps;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -52,15 +53,15 @@ class VpsPageController extends Controller
         $vps = $result->success ? $this->withProfiles($result->data) : [];
 
         return Inertia::render('Vps/Index', [
-            'vps'        => $vps,
-            'canSeeAll'  => $request->user()->can('Manage.Permissions.VPS.all'),
-            'error'      => !$result->success ? $result->error : null,
+            'vps' => $vps,
+            'canSeeAll' => $request->user()->can('Manage.Permissions.VPS.all'),
+            'error' => ! $result->success ? $result->error : null,
         ]);
     }
 
     public function show(Request $request, string $id): Response
     {
-        $user    = $request->user();
+        $user = $request->user();
         $details = $this->getVpsDetails->execute($user, $id);
         $metrics = $this->getVpsMetrics->execute($user, $id);
         $actions = $this->getVpsActions->execute($user, $id);
@@ -69,12 +70,12 @@ class VpsPageController extends Controller
         $vps = $details->success && $details->data ? $this->withProfile($details->data) : null;
 
         return Inertia::render('Vps/Show', [
-            'vps'     => $vps,
-            'metrics' => ($metrics->success && is_array($metrics->data) && !empty($metrics->data)) ? $metrics->data : null,
+            'vps' => $vps,
+            'metrics' => ($metrics->success && is_array($metrics->data) && ! empty($metrics->data)) ? $metrics->data : null,
             'actions' => $actions->success ? $actions->data : [],
             'backups' => $backups->success ? $backups->data : [],
             'sshKeys' => $sshKeys->success ? $sshKeys->data : [],
-            'vpsId'   => $id,
+            'vpsId' => $id,
         ]);
     }
 
@@ -101,13 +102,13 @@ class VpsPageController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        if (!$this->vpsRepository->userHasAccess($request->user()->id, $id)) {
+        if (! $this->vpsRepository->userHasAccess($request->user()->id, $id)) {
             abort(403);
         }
 
         $result = $this->hostinger->changePassword($id, $validated['password'], (string) Str::uuid());
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', 'Failed to change VPS password.');
         }
 
@@ -132,14 +133,16 @@ class VpsPageController extends Controller
             userAgent: $request->userAgent(),
         );
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', match ($result->error) {
                 'forbidden' => 'You do not have access to this VPS.',
-                'policy_denied' => 'Action blocked by policy: ' . ($result->policyReason ?? ''),
+                'policy_denied' => 'Action blocked by policy: '.($result->policyReason ?? ''),
                 'invalid_key' => $result->validationMessage ?? 'Invalid SSH key.',
                 default => 'Failed to add SSH key.',
             });
         }
+
+        Cache::forget("hostinger:vps:{$id}:ssh-keys");
 
         return back()->with('success', 'SSH key added.');
     }
@@ -156,57 +159,65 @@ class VpsPageController extends Controller
             userAgent: $request->userAgent(),
         );
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', match ($result->error) {
                 'forbidden' => 'You do not have access to this VPS.',
-                'policy_denied' => 'Action blocked by policy: ' . ($result->policyReason ?? ''),
+                'policy_denied' => 'Action blocked by policy: '.($result->policyReason ?? ''),
                 default => 'Failed to remove SSH key.',
             });
         }
+
+        Cache::forget("hostinger:vps:{$id}:ssh-keys");
 
         return back()->with('success', 'SSH key removed.');
     }
 
     public function firewall(Request $request, string $id): Response
     {
-        $result = $this->getVpsFirewall->execute($request->user(), $id);
+        $user = $request->user();
+        $result = $this->getVpsFirewall->execute($user, $id);
 
         return Inertia::render('Vps/Firewall', [
             'rules' => $result->success ? $result->data : [],
+            'vps' => $this->vpsForChildPage($user, $id),
             'vpsId' => $id,
         ]);
     }
 
     public function sshKeys(Request $request, string $id): Response
     {
-        $result = $this->getVpsSshKeys->execute($request->user(), $id);
+        $user = $request->user();
+        $result = $this->getVpsSshKeys->execute($user, $id);
 
         return Inertia::render('Vps/SshKeys', [
-            'keys'  => $result->success ? $result->data : [],
+            'keys' => $result->success ? $result->data : [],
+            'vps' => $this->vpsForChildPage($user, $id),
             'vpsId' => $id,
         ]);
     }
 
     public function snapshots(Request $request, string $id): Response
     {
-        $result = $this->getVpsSnapshots->execute($request->user(), $id);
+        $user = $request->user();
+        $result = $this->getVpsSnapshots->execute($user, $id);
 
         return Inertia::render('Vps/Snapshots', [
             'snapshots' => $result->success ? $result->data : [],
-            'vpsId'     => $id,
+            'vps' => $this->vpsForChildPage($user, $id),
+            'vpsId' => $id,
         ]);
     }
 
     public function start(Request $request, string $id): RedirectResponse
     {
-        $user   = $request->user();
+        $user = $request->user();
         $result = $this->startVps->execute($user->id, $id, $user->email, $request->ip(), $request->userAgent());
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', match ($result->error) {
-                'forbidden'     => 'You do not have access to this VPS.',
-                'policy_denied' => 'Action blocked by policy: ' . ($result->policyReason ?? ''),
-                default         => 'Failed to start VPS.',
+                'forbidden' => 'You do not have access to this VPS.',
+                'policy_denied' => 'Action blocked by policy: '.($result->policyReason ?? ''),
+                default => 'Failed to start VPS.',
             });
         }
 
@@ -215,14 +226,14 @@ class VpsPageController extends Controller
 
     public function stop(Request $request, string $id): RedirectResponse
     {
-        $user   = $request->user();
+        $user = $request->user();
         $result = $this->stopVps->execute($user->id, $id, $user->email, $request->ip(), $request->userAgent());
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', match ($result->error) {
-                'forbidden'     => 'You do not have access to this VPS.',
-                'policy_denied' => 'Action blocked by policy: ' . ($result->policyReason ?? ''),
-                default         => 'Failed to stop VPS.',
+                'forbidden' => 'You do not have access to this VPS.',
+                'policy_denied' => 'Action blocked by policy: '.($result->policyReason ?? ''),
+                default => 'Failed to stop VPS.',
             });
         }
 
@@ -231,14 +242,14 @@ class VpsPageController extends Controller
 
     public function reboot(Request $request, string $id): RedirectResponse
     {
-        $user   = $request->user();
+        $user = $request->user();
         $result = $this->rebootVps->execute($user->id, $id, $user->email, $request->ip(), $request->userAgent());
 
-        if (!$result->success) {
+        if (! $result->success) {
             return back()->with('error', match ($result->error) {
-                'forbidden'     => 'You do not have access to this VPS.',
-                'policy_denied' => 'Action blocked by policy: ' . ($result->policyReason ?? ''),
-                default         => 'Failed to reboot VPS.',
+                'forbidden' => 'You do not have access to this VPS.',
+                'policy_denied' => 'Action blocked by policy: '.($result->policyReason ?? ''),
+                default => 'Failed to reboot VPS.',
             });
         }
 
@@ -253,24 +264,35 @@ class VpsPageController extends Controller
         return array_map(fn (array $vps) => $this->withProfile($vps, $profiles[$vps['id']] ?? null), $vpsList);
     }
 
+    private function vpsForChildPage($user, string $id): array
+    {
+        $details = $this->getVpsDetails->execute($user, $id);
+
+        if ($details->success && is_array($details->data) && ! empty($details->data)) {
+            return $this->withProfile($details->data);
+        }
+
+        return $this->withProfile(['id' => $id, 'hostname' => $id, 'plan' => '—']);
+    }
+
     private function withProfile(array $vps, ?string $displayName = null): array
     {
         $id = (string) ($vps['id'] ?? '');
         $displayName ??= VpsProfile::where('vps_id', $id)->value('display_name');
 
         // Hostinger API field normalisation
-        $status    = $vps['status'] ?? $vps['state'] ?? 'unknown';
+        $status = $vps['status'] ?? $vps['state'] ?? 'unknown';
         $ipAddress = $vps['ip_address'] ?? ($vps['ipv4'][0]['address'] ?? ($vps['ipv4'][0]['ip'] ?? ''));
-        $ram       = $vps['ram'] ?? $vps['memory'] ?? null;
-        $os        = $vps['os'] ?? ($vps['template']['name'] ?? null);
+        $ram = $vps['ram'] ?? $vps['memory'] ?? null;
+        $os = $vps['os'] ?? ($vps['template']['name'] ?? null);
 
         return array_merge($vps, [
-            'id'           => $id,
+            'id' => $id,
             'display_name' => $displayName ?: ($vps['hostname'] ?? $id ?: 'VPS'),
-            'status'       => $status,
-            'ip_address'   => $ipAddress,
-            'ram'          => $ram,
-            'os'           => $os,
+            'status' => $status,
+            'ip_address' => $ipAddress,
+            'ram' => $ram,
+            'os' => $os,
         ]);
     }
 }

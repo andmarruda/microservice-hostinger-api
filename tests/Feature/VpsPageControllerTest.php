@@ -15,6 +15,13 @@ class VpsPageControllerTest extends TestCase
 
     private string $vpsId = 'vps-web-1';
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['services.hostinger.base_url' => 'https://developers.hostinger.com']);
+    }
+
     public function test_web_start_stop_and_reboot_call_hostinger_endpoints(): void
     {
         Http::fake([
