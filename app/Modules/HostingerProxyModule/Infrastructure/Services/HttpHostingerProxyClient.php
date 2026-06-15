@@ -5,6 +5,7 @@ namespace App\Modules\HostingerProxyModule\Infrastructure\Services;
 use App\Exceptions\HostingerQuotaExceededException;
 use App\Infrastructure\Quota\HostingerQuotaTracker;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -95,7 +96,10 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
 
     public function getVpsMetrics(string $vpsId): array
     {
-        return $this->get("/api/vps/v1/virtual-machines/{$vpsId}/metrics");
+        return $this->get("/api/vps/v1/virtual-machines/{$vpsId}/metrics", [
+            'date_from' => gmdate('Y-m-d', time() - 86400),
+            'date_to' => gmdate('Y-m-d'),
+        ]);
     }
 
     public function getVpsActions(string $vpsId): array
@@ -120,7 +124,7 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
 
     public function getVpsSshKeys(string $vpsId): array
     {
-        return $this->get("/api/vps/v1/virtual-machines/{$vpsId}/public-keys");
+        return $this->get('/api/vps/v1/public-keys');
     }
 
     public function getVpsSnapshots(string $vpsId): array
@@ -160,7 +164,7 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
 
         $request = Http::withToken($this->apiToken)
             ->timeout($this->timeout)   // GAP 6
-            ->retry(3, 200);
+            ->retry(3, 200, fn ($exception) => ! $exception instanceof RequestException || ! $exception->response?->clientError());
 
         if ($correlationId) {
             $request = $request->withHeader('X-Correlation-ID', $correlationId);
@@ -179,7 +183,7 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
                 'correlation_id' => $correlationId,
             ]);
 
-            throw new \RuntimeException("Hostinger API error [{$response->status()}]: {$response->body()}");
+            throw new \RuntimeException("Hostinger API error [{$response->status()}]: {$response->body()}", $response->status());
         }
 
         return $response->json() ?? [];

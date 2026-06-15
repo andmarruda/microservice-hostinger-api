@@ -32,21 +32,21 @@ class HostingerQuotaTracker
             Cache::put($resourceKey, 1, self::TTL);
         }
 
-        $warnAt    = $this->getWarningThreshold();
+        $warnAt = $this->getWarningThreshold();
         $hardLimit = $this->getHardLimit();
 
-        if ($globalCount >= $hardLimit) {
+        if ($hardLimit > 0 && $globalCount >= $hardLimit) {
             Log::error('HostingerQuotaTracker: daily hard limit reached.', [
-                'count'         => $globalCount,
-                'hard_limit'    => $hardLimit,
-                'date'          => $this->date,
+                'count' => $globalCount,
+                'hard_limit' => $hardLimit,
+                'date' => $this->date,
                 'resource_type' => $resourceType,
             ]);
         } elseif ($globalCount >= $warnAt) {
             Log::warning('HostingerQuotaTracker: approaching daily quota limit.', [
-                'count'         => $globalCount,
-                'warn_at'       => $warnAt,
-                'date'          => $this->date,
+                'count' => $globalCount,
+                'warn_at' => $warnAt,
+                'date' => $this->date,
                 'resource_type' => $resourceType,
             ]);
         }

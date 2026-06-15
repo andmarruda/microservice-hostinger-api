@@ -16,6 +16,7 @@ interface Metric {
     disk_usage: number;
     network_in: number;
     network_out: number;
+    uptime?: number;
 }
 
 interface Backup {
@@ -31,6 +32,12 @@ interface Props {
     actions: unknown[];
     backups: Backup[];
     sshKeys: SshKey[];
+    resourceErrors?: {
+        details?: string | null;
+        metrics?: string | null;
+        backups?: string | null;
+        sshKeys?: string | null;
+    };
 }
 
 function statusVariant(status: string): 'success' | 'warning' | 'destructive' | 'default' {
@@ -47,6 +54,22 @@ function GaugeBar({ value }: { value: number }) {
                 className={`h-1.5 rounded-full ${value >= 90 ? 'bg-red-500' : value >= 70 ? 'bg-yellow-500' : 'bg-green-500'}`}
                 style={{ width: `${Math.min(value, 100)}%` }}
             />
+        </div>
+    );
+}
+
+function ResourceErrors({ errors }: { errors?: Props['resourceErrors'] }) {
+    const messages = Object.values(errors ?? {}).filter((message): message is string => Boolean(message));
+
+    if (messages.length === 0) return null;
+
+    return (
+        <div className="mb-4 space-y-2">
+            {messages.map((message) => (
+                <div key={message} className="rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                    {message}
+                </div>
+            ))}
         </div>
     );
 }
@@ -328,11 +351,58 @@ function PasswordCard({ vps }: { vps: Vps }) {
     );
 }
 
-function MetricStatCard({ label, icon: Icon, value, suffix }: { label: string; icon: (props: { className?: string }) => JSX.Element; value: number; suffix: string }) {
+function BackupsCard({ backups }: { backups: Backup[] }) {
+    return (
+        <Card>
+            <CardHeader><CardTitle>Backups</CardTitle></CardHeader>
+            <CardContent>
+                {backups.length === 0 ? (
+                    <p className="text-sm text-gray-400">No backups found.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {backups.slice(0, 5).map((backup) => (
+                            <div key={backup.id} className="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium text-gray-900">{backup.id}</p>
+                                    <p className="text-xs text-gray-500">{backup.created_at}</p>
+                                </div>
+                                <Badge variant={backup.state === 'completed' ? 'success' : backup.state === 'failed' ? 'destructive' : 'warning'}>
+                                    {backup.state}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function formatNumber(value: number) {
+    return value % 1 === 0 ? String(value) : value.toFixed(1);
+}
+
+function MetricStatCard({
+    label,
+    icon: Icon,
+    value,
+    suffix,
+    gaugeValue,
+    detail,
+}: {
+    label: string;
+    icon: (props: { className?: string }) => JSX.Element;
+    value: number;
+    suffix: string;
+    gaugeValue?: number;
+    detail?: string;
+}) {
     const display = typeof value === 'number' && isFinite(value)
-        ? (value % 1 === 0 ? String(value) : value.toFixed(1))
+        ? formatNumber(value)
         : '—';
-    const gauge = suffix === '%' && typeof value === 'number' ? value : 0;
+    const gauge = typeof gaugeValue === 'number'
+        ? gaugeValue
+        : (suffix === '%' && typeof value === 'number' ? value : 0);
 
     return (
         <Card>
@@ -342,13 +412,14 @@ function MetricStatCard({ label, icon: Icon, value, suffix }: { label: string; i
                     <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
                 </div>
                 <p className="text-2xl font-semibold text-gray-900">{display}{suffix}</p>
+                {detail && <p className="mt-1 text-xs text-gray-500">{detail}</p>}
                 <GaugeBar value={gauge} />
             </CardContent>
         </Card>
     );
 }
 
-export default function VpsShow({ vps, metrics, sshKeys }: Props) {
+export default function VpsShow({ vps, metrics, backups, sshKeys, resourceErrors }: Props) {
     if (!vps) {
         return (
             <AppLayout title="VPS">
@@ -362,21 +433,36 @@ export default function VpsShow({ vps, metrics, sshKeys }: Props) {
         <AppLayout title={vps.display_name ?? vps.hostname}>
             <Head title={vps.display_name ?? vps.hostname} />
 
+            <ResourceErrors errors={resourceErrors} />
+
             <InfoCard vps={vps} />
 
             <div className="grid gap-4 lg:grid-cols-2">
                 <SshKeysCard vps={vps} sshKeys={sshKeys} />
                 <PasswordCard vps={vps} />
+                <BackupsCard backups={backups} />
             </div>
 
-            {metrics && (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <MetricStatCard label="CPU" icon={Cpu} value={metrics.cpu_usage} suffix="%" />
-                    <MetricStatCard label="Memory" icon={MemoryStick} value={metrics.memory_usage} suffix="%" />
-                    <MetricStatCard label="Disk" icon={HardDrive} value={metrics.disk_usage} suffix="%" />
-                    <MetricStatCard label="Net In" icon={Network} value={metrics.network_in / 1024 / 1024} suffix=" MB" />
-                </div>
-            )}
+            {metrics && (() => {
+                const totalMemoryMb = Number(vps.ram ?? vps.memory ?? 0);
+                const memoryPercent = totalMemoryMb > 0 ? (metrics.memory_usage / totalMemoryMb) * 100 : 0;
+
+                return (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <MetricStatCard label="CPU" icon={Cpu} value={metrics.cpu_usage} suffix="%" />
+                        <MetricStatCard
+                            label="Memory"
+                            icon={MemoryStick}
+                            value={metrics.memory_usage}
+                            suffix=" MB"
+                            gaugeValue={memoryPercent}
+                            detail={totalMemoryMb > 0 ? `${formatNumber(memoryPercent)}% of ${formatNumber(totalMemoryMb / 1024)} GB` : undefined}
+                        />
+                        <MetricStatCard label="Disk" icon={HardDrive} value={metrics.disk_usage} suffix=" GB" />
+                        <MetricStatCard label="Net In" icon={Network} value={metrics.network_in / 1024 / 1024} suffix=" MB" />
+                    </div>
+                );
+            })()}
         </AppLayout>
     );
 }

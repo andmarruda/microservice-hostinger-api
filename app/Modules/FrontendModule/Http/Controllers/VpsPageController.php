@@ -67,7 +67,9 @@ class VpsPageController extends Controller
         $actions = $this->getVpsActions->execute($user, $id);
         $backups = $this->getVpsBackups->execute($user, $id);
         $sshKeys = $this->getVpsSshKeys->execute($user, $id);
-        $vps = $details->success && $details->data ? $this->withProfile($details->data) : null;
+        $vps = $details->success && $details->data
+            ? $this->withProfile($details->data)
+            : $this->withProfile(['id' => $id, 'hostname' => $id, 'plan' => 'Unavailable']);
 
         return Inertia::render('Vps/Show', [
             'vps' => $vps,
@@ -75,6 +77,12 @@ class VpsPageController extends Controller
             'actions' => $actions->success ? $actions->data : [],
             'backups' => $backups->success ? $backups->data : [],
             'sshKeys' => $sshKeys->success ? $sshKeys->data : [],
+            'resourceErrors' => [
+                'details' => $details->success ? null : $this->resourceErrorMessage('details', $details->error),
+                'metrics' => $metrics->success ? null : $this->resourceErrorMessage('metrics', $metrics->error),
+                'backups' => $backups->success ? null : $this->resourceErrorMessage('backups', $backups->error),
+                'sshKeys' => $sshKeys->success ? null : $this->resourceErrorMessage('SSH keys', $sshKeys->error),
+            ],
             'vpsId' => $id,
         ]);
     }
@@ -142,7 +150,7 @@ class VpsPageController extends Controller
             });
         }
 
-        Cache::forget("hostinger:vps:{$id}:ssh-keys");
+        $this->forgetSshKeysCache($id);
 
         return back()->with('success', 'SSH key added.');
     }
@@ -167,7 +175,7 @@ class VpsPageController extends Controller
             });
         }
 
-        Cache::forget("hostinger:vps:{$id}:ssh-keys");
+        $this->forgetSshKeysCache($id);
 
         return back()->with('success', 'SSH key removed.');
     }
@@ -191,6 +199,7 @@ class VpsPageController extends Controller
 
         return Inertia::render('Vps/SshKeys', [
             'keys' => $result->success ? $result->data : [],
+            'error' => $result->success ? null : $this->sshKeysErrorMessage($result->error),
             'vps' => $this->vpsForChildPage($user, $id),
             'vpsId' => $id,
         ]);
@@ -273,6 +282,28 @@ class VpsPageController extends Controller
         }
 
         return $this->withProfile(['id' => $id, 'hostname' => $id, 'plan' => '—']);
+    }
+
+    private function sshKeysErrorMessage(?string $error): ?string
+    {
+        return $this->resourceErrorMessage('SSH keys', $error);
+    }
+
+    private function resourceErrorMessage(string $resource, ?string $error): ?string
+    {
+        return match ($error) {
+            'forbidden' => "You do not have local permission to view {$resource} for this VPS.",
+            'hostinger_unauthorized' => "Hostinger rejected the configured API token while loading {$resource}.",
+            'hostinger_forbidden' => "Hostinger denied access to {$resource}. Check whether the API token has the required VPS read scope.",
+            'hostinger_error' => "Hostinger could not return {$resource} right now.",
+            default => null,
+        };
+    }
+
+    private function forgetSshKeysCache(string $id): void
+    {
+        Cache::forget("hostinger:vps:{$id}:ssh-keys");
+        Cache::forget("hostinger:vps:{$id}:ssh-keys:v2");
     }
 
     private function withProfile(array $vps, ?string $displayName = null): array

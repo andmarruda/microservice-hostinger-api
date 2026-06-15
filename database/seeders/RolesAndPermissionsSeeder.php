@@ -14,6 +14,10 @@ class RolesAndPermissionsSeeder extends Seeder
         'VPS.VirtualMachine.Manage.read',
         'VPS.VirtualMachine.Manage.details',
         'VPS.VirtualMachine.Manage.metrics',
+        'VPS.Actions.read',
+        'VPS.Backups.read',
+        'VPS.PublicKeys.read',
+        'VPS.VirtualMachine.PublicKeys.read',
         'Manage.Permissions.VPS.all',
         'Manage.Invite.user',
         'Manage.Users.create',
@@ -33,6 +37,12 @@ class RolesAndPermissionsSeeder extends Seeder
 
     private const USER_PERMISSIONS = [
         'VPS.VirtualMachine.Manage.read',
+        'VPS.VirtualMachine.Manage.details',
+        'VPS.VirtualMachine.Manage.metrics',
+        'VPS.Actions.read',
+        'VPS.Backups.read',
+        'VPS.PublicKeys.read',
+        'VPS.VirtualMachine.PublicKeys.read',
     ];
 
     public function run(): void

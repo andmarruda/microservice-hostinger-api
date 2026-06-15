@@ -30,4 +30,9 @@ describe('VPS SSH Keys page', () => {
         render(<VpsSshKeys vps={vps} keys={keys} />);
         expect(screen.getByText('Added 2024-01-01')).toBeInTheDocument();
     });
+
+    it('renders hostinger error message', () => {
+        render(<VpsSshKeys vps={vps} keys={[]} error="Hostinger denied access to SSH keys." />);
+        expect(screen.getByText(/hostinger denied access/i)).toBeInTheDocument();
+    });
 });

@@ -6,9 +6,10 @@ import { Head } from '@inertiajs/react';
 interface Props {
     vps: Vps;
     keys: SshKey[];
+    error?: string | null;
 }
 
-export default function VpsSshKeys({ vps, keys }: Props) {
+export default function VpsSshKeys({ vps, keys, error }: Props) {
     return (
         <AppLayout title={`${vps.hostname} — SSH Keys`}>
             <Head title={`SSH Keys — ${vps.hostname}`} />
@@ -18,6 +19,12 @@ export default function VpsSshKeys({ vps, keys }: Props) {
                     <CardTitle>SSH Keys</CardTitle>
                 </CardHeader>
                 <CardContent>
+                    {error && (
+                        <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                            {error}
+                        </div>
+                    )}
+
                     {keys.length === 0 ? (
                         <p className="text-sm text-gray-400">No SSH keys associated with this VPS.</p>
                     ) : (

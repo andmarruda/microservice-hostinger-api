@@ -11,8 +11,8 @@ use App\Modules\HostingerProxyModule\UseCases\GetVpsList\GetVpsList;
 use App\Modules\HostingerProxyModule\UseCases\GetVpsMetrics\GetVpsMetrics;
 use App\Modules\HostingerProxyModule\UseCases\GetVpsOsTemplates\GetVpsOsTemplates;
 use App\Modules\HostingerProxyModule\UseCases\GetVpsPostInstallScripts\GetVpsPostInstallScripts;
-use App\Modules\HostingerProxyModule\UseCases\GetVpsSshKeys\GetVpsSshKeys;
 use App\Modules\HostingerProxyModule\UseCases\GetVpsSnapshots\GetVpsSnapshots;
+use App\Modules\HostingerProxyModule\UseCases\GetVpsSshKeys\GetVpsSshKeys;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -35,7 +35,7 @@ class VpsReadController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -48,7 +48,7 @@ class VpsReadController extends Controller
 
     public function show(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -61,7 +61,7 @@ class VpsReadController extends Controller
 
     public function metrics(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -74,7 +74,7 @@ class VpsReadController extends Controller
 
     public function actions(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -87,7 +87,7 @@ class VpsReadController extends Controller
 
     public function backups(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -100,7 +100,7 @@ class VpsReadController extends Controller
 
     public function firewall(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -113,7 +113,7 @@ class VpsReadController extends Controller
 
     public function osTemplates(Request $request): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -126,7 +126,7 @@ class VpsReadController extends Controller
 
     public function sshKeys(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -139,7 +139,7 @@ class VpsReadController extends Controller
 
     public function snapshots(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -152,7 +152,7 @@ class VpsReadController extends Controller
 
     public function datacenters(Request $request): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -165,7 +165,7 @@ class VpsReadController extends Controller
 
     public function postInstallScripts(Request $request, string $vpsId): JsonResponse
     {
-        if (!$request->user()) {
+        if (! $request->user()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -180,6 +180,8 @@ class VpsReadController extends Controller
     {
         return match ($error) {
             'forbidden' => response()->json(['message' => 'Forbidden.'], 403),
+            'hostinger_unauthorized' => response()->json(['message' => 'Hostinger rejected the configured API token.'], 502),
+            'hostinger_forbidden' => response()->json(['message' => 'Hostinger denied access to this resource.'], 403),
             default => response()->json(['message' => 'Failed to communicate with Hostinger.'], 502),
         };
     }

@@ -30,7 +30,7 @@ class HttpHostingerSecurityApiClient implements HostingerSecurityApiClientInterf
 
     public function addSshKey(string $vpsId, string $keyName, string $publicKey, string $correlationId): HostingerSecurityApiResult
     {
-        return $this->call('POST', "/api/vps/v1/virtual-machines/{$vpsId}/public-keys", $correlationId, [
+        return $this->call('POST', '/api/vps/v1/public-keys', $correlationId, [
             'name' => $keyName,
             'key' => $publicKey,
         ]);
@@ -38,7 +38,7 @@ class HttpHostingerSecurityApiClient implements HostingerSecurityApiClientInterf
 
     public function removeSshKey(string $vpsId, string $keyId, string $correlationId): HostingerSecurityApiResult
     {
-        return $this->call('DELETE', "/api/vps/v1/virtual-machines/{$vpsId}/public-keys/{$keyId}", $correlationId);
+        return $this->call('DELETE', "/api/vps/v1/public-keys/{$keyId}", $correlationId);
     }
 
     public function createSnapshot(string $vpsId, string $label, string $correlationId): HostingerSecurityApiResult

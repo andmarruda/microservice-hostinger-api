@@ -7,6 +7,8 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\HostingerProxyModule\Ports\Services\HostingerProxyClientInterface;
 use App\Modules\HostingerProxyModule\Ports\Services\ProxyResult;
 use App\Modules\VpsModule\Ports\Repositories\VpsRepositoryInterface;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Log;
 
 class GetVpsSshKeys
 {
@@ -26,11 +28,50 @@ class GetVpsSshKeys
         }
 
         try {
-            $cacheKey = "hostinger:vps:{$vpsId}:ssh-keys";
+            $cacheKey = "hostinger:vps:{$vpsId}:ssh-keys:v2";
             $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsSshKeys($vpsId));
 
             return ProxyResult::success($this->normalizeKeys($data));
-        } catch (\Throwable) {
+        } catch (RequestException $e) {
+            Log::warning('Failed to load Hostinger VPS SSH keys.', [
+                'vps_id' => $vpsId,
+                'status_code' => $e->response->status(),
+                'message' => $e->getMessage(),
+            ]);
+
+            if ($e->response->status() === 401) {
+                return ProxyResult::hostingerUnauthorized();
+            }
+
+            if ($e->response->status() === 403) {
+                return ProxyResult::hostingerForbidden();
+            }
+
+            return ProxyResult::hostingerError();
+        } catch (\RuntimeException $e) {
+            Log::warning('Failed to load Hostinger VPS SSH keys.', [
+                'vps_id' => $vpsId,
+                'status_code' => $e->getCode(),
+                'message' => $e->getMessage(),
+            ]);
+
+            if ($e->getCode() === 401) {
+                return ProxyResult::hostingerUnauthorized();
+            }
+
+            if ($e->getCode() === 403) {
+                return ProxyResult::hostingerForbidden();
+            }
+
+            return ProxyResult::hostingerError();
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load Hostinger VPS SSH keys.', [
+                'vps_id' => $vpsId,
+                'status_code' => $e->getCode(),
+                'message' => $e->getMessage(),
+                'exception' => $e::class,
+            ]);
+
             return ProxyResult::hostingerError();
         }
     }

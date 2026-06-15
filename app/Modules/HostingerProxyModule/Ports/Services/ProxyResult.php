@@ -24,4 +24,14 @@ class ProxyResult
     {
         return new self(false, null, 'hostinger_error');
     }
+
+    public static function hostingerForbidden(): self
+    {
+        return new self(false, null, 'hostinger_forbidden');
+    }
+
+    public static function hostingerUnauthorized(): self
+    {
+        return new self(false, null, 'hostinger_unauthorized');
+    }
 }

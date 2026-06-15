@@ -29,7 +29,11 @@ const sshKeys = [
     { id: 'key-1', name: 'anderson-laptop', fingerprint: 'SHA256:abc', created_at: '2024-01-01' },
 ];
 
-const defaultProps = { vps, metrics, actions: [], backups: [], sshKeys };
+const backups = [
+    { id: 'backup-1', created_at: '2026-06-15', size: 1024, state: 'completed' },
+];
+
+const defaultProps = { vps, metrics, actions: [], backups, sshKeys };
 
 describe('VPS Show page', () => {
     it('renders error message when vps is null', () => {
@@ -195,6 +199,17 @@ describe('VPS Show page', () => {
         render(<VpsShow {...defaultProps} metrics={null} />);
         expect(screen.queryByText('CPU')).not.toBeInTheDocument();
         expect(screen.queryByText('Memory')).not.toBeInTheDocument();
+    });
+
+    it('renders resource error messages', () => {
+        render(<VpsShow {...defaultProps} resourceErrors={{ metrics: 'Hostinger could not return metrics right now.' }} />);
+        expect(screen.getByText(/could not return metrics/i)).toBeInTheDocument();
+    });
+
+    it('renders backups card', () => {
+        render(<VpsShow {...defaultProps} />);
+        expect(screen.getByText('Backups')).toBeInTheDocument();
+        expect(screen.getByText('backup-1')).toBeInTheDocument();
     });
 
     it('renders stopped status', () => {

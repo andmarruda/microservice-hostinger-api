@@ -35,7 +35,7 @@ class HttpHostingerApiClient implements HostingerApiClientInterface
 
     public function changePassword(string $vpsId, string $password, string $correlationId): HostingerApiResult
     {
-        return $this->call('POST', "/api/vps/v1/virtual-machines/{$vpsId}/password", $correlationId, [
+        return $this->call('PUT', "/api/vps/v1/virtual-machines/{$vpsId}/root-password", $correlationId, [
             'password' => $password,
         ]);
     }

@@ -59,7 +59,7 @@ class VpsPageControllerTest extends TestCase
 
     public function test_user_with_access_can_change_vps_password(): void
     {
-        Http::fake(['*/password' => Http::response([], 200)]);
+        Http::fake(['*/root-password' => Http::response([], 200)]);
 
         $user = $this->userWithAccess();
 
@@ -71,7 +71,8 @@ class VpsPageControllerTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
 
-        Http::assertSent(fn ($request) => str_ends_with($request->url(), "/virtual-machines/{$this->vpsId}/password")
+        Http::assertSent(fn ($request) => $request->method() === 'PUT'
+            && str_ends_with($request->url(), "/virtual-machines/{$this->vpsId}/root-password")
             && $request['password'] === 'NewPassword1!');
     }
 
@@ -104,11 +105,11 @@ class VpsPageControllerTest extends TestCase
             ->assertSessionHas('success');
 
         Http::assertSent(fn ($request) => $request->method() === 'POST'
-            && str_ends_with($request->url(), "/virtual-machines/{$this->vpsId}/public-keys")
+            && str_ends_with($request->url(), '/api/vps/v1/public-keys')
             && $request['name'] === 'anderson-laptop');
 
         Http::assertSent(fn ($request) => $request->method() === 'DELETE'
-            && str_ends_with($request->url(), "/virtual-machines/{$this->vpsId}/public-keys/key-1"));
+            && str_ends_with($request->url(), '/api/vps/v1/public-keys/key-1'));
     }
 
     private function userWithAccess(): User

@@ -81,4 +81,44 @@ class GetVpsSshKeysTest extends TestCase
         $this->assertFalse($result->success);
         $this->assertSame('forbidden', $result->error);
     }
+
+    public function test_returns_hostinger_forbidden_when_hostinger_denies_public_keys(): void
+    {
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 42;
+        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(true);
+        $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
+
+        $this->vpsRepository->shouldReceive('userHasAccess')->with(42, 'vps-1')->once()->andReturn(true);
+
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andThrow(new \RuntimeException('Hostinger API error [403]: Forbidden', 403));
+        Cache::shouldReceive('increment')->zeroOrMoreTimes();
+
+        $result = $this->useCase->execute($user, 'vps-1');
+
+        $this->assertFalse($result->success);
+        $this->assertSame('hostinger_forbidden', $result->error);
+    }
+
+    public function test_returns_hostinger_unauthorized_when_hostinger_rejects_token(): void
+    {
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 42;
+        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(true);
+        $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
+
+        $this->vpsRepository->shouldReceive('userHasAccess')->with(42, 'vps-1')->once()->andReturn(true);
+
+        Cache::shouldReceive('remember')
+            ->once()
+            ->andThrow(new \RuntimeException('Hostinger API error [401]: Unauthorized', 401));
+        Cache::shouldReceive('increment')->zeroOrMoreTimes();
+
+        $result = $this->useCase->execute($user, 'vps-1');
+
+        $this->assertFalse($result->success);
+        $this->assertSame('hostinger_unauthorized', $result->error);
+    }
 }
