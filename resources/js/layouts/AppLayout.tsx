@@ -22,8 +22,7 @@ const NAV: NavGroup[] = [
     {
         title: 'Infrastructure',
         items: [
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'VPS', href: '/vps', match: '/vps', permissions: ['VPS.VirtualMachine.Manage.read'] },
+            { label: 'VPS', href: '/vps', match: '/vps' },
         ],
     },
     {

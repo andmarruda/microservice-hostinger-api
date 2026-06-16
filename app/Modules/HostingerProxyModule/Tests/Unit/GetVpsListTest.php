@@ -32,31 +32,14 @@ class GetVpsListTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_returns_forbidden_when_user_lacks_permission(): void
-    {
-        $user = Mockery::mock(User::class)->makePartial();
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.Manage.read')->andReturn(false);
-
-        $this->client->shouldNotReceive('getVpsList');
-
-        $result = $this->useCase->execute($user);
-
-        $this->assertFalse($result->success);
-        $this->assertEquals('forbidden', $result->error);
-    }
-
     public function test_admin_with_vps_all_permission_gets_full_list(): void
     {
         $allVps = [['id' => 'vps-1'], ['id' => 'vps-2'], ['id' => 'vps-3']];
 
         $user = Mockery::mock(User::class)->makePartial();
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.Manage.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(true);
 
-        Cache::shouldReceive('remember')
-            ->once()
-            ->andReturn($allVps);
-
+        Cache::shouldReceive('remember')->once()->andReturn($allVps);
         $this->vpsRepository->shouldNotReceive('findAllForUser');
 
         $result = $this->useCase->execute($user);
@@ -71,13 +54,9 @@ class GetVpsListTest extends TestCase
 
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = 42;
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.Manage.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
-        Cache::shouldReceive('remember')
-            ->once()
-            ->andReturn($allVps);
-
+        Cache::shouldReceive('remember')->once()->andReturn($allVps);
         $this->vpsRepository->shouldReceive('findAllForUser')->with(42)->once()->andReturn(['vps-1', 'vps-3']);
 
         $result = $this->useCase->execute($user);
@@ -94,13 +73,9 @@ class GetVpsListTest extends TestCase
 
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = 99;
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.Manage.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
-        Cache::shouldReceive('remember')
-            ->once()
-            ->andReturn($allVps);
-
+        Cache::shouldReceive('remember')->once()->andReturn($allVps);
         $this->vpsRepository->shouldReceive('findAllForUser')->with(99)->once()->andReturn([]);
 
         $result = $this->useCase->execute($user);
@@ -112,11 +87,10 @@ class GetVpsListTest extends TestCase
     public function test_returns_hostinger_error_when_client_throws(): void
     {
         $user = Mockery::mock(User::class)->makePartial();
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.Manage.read')->andReturn(true);
+        $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
-        Cache::shouldReceive('remember')
-            ->once()
-            ->andThrow(new \RuntimeException('Connection refused'));
+        Cache::shouldReceive('remember')->once()->andThrow(new \RuntimeException('Connection refused'));
+        $this->vpsRepository->shouldNotReceive('findAllForUser');
 
         $result = $this->useCase->execute($user);
 

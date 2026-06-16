@@ -34,12 +34,10 @@ class GetVpsSshKeysTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_accepts_virtual_machine_public_keys_permission_and_normalizes_wrapped_payload(): void
+    public function test_user_with_vps_access_can_read_ssh_keys(): void
     {
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = 42;
-        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(false);
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.PublicKeys.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
         $this->vpsRepository->shouldReceive('userHasAccess')->with(42, 'vps-1')->once()->andReturn(true);
@@ -49,10 +47,10 @@ class GetVpsSshKeysTest extends TestCase
             ->andReturn([
                 'data' => [
                     [
-                        'uuid' => 'key-1',
-                        'label' => 'Anderson laptop',
-                        'finger_print' => 'SHA256:abc123',
-                        'createdAt' => '2026-06-15T12:00:00Z',
+                        'id' => 'key-1',
+                        'name' => 'Anderson laptop',
+                        'fingerprint' => 'SHA256:abc123',
+                        'created_at' => '2026-06-15T12:00:00Z',
                     ],
                 ],
             ]);
@@ -67,13 +65,29 @@ class GetVpsSshKeysTest extends TestCase
         $this->assertSame('2026-06-15T12:00:00Z', $result->data[0]['created_at']);
     }
 
-    public function test_returns_forbidden_when_user_lacks_both_public_key_read_permissions(): void
+    public function test_admin_with_all_vps_permission_bypasses_access_grant_check(): void
     {
         $user = Mockery::mock(User::class)->makePartial();
-        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(false);
-        $user->shouldReceive('can')->with('VPS.VirtualMachine.PublicKeys.read')->andReturn(false);
+        $user->id = 1;
+        $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(true);
 
         $this->vpsRepository->shouldNotReceive('userHasAccess');
+
+        Cache::shouldReceive('remember')->once()->andReturn(['data' => []]);
+        Cache::shouldReceive('increment')->zeroOrMoreTimes();
+
+        $result = $this->useCase->execute($user, 'vps-1');
+
+        $this->assertTrue($result->success);
+    }
+
+    public function test_returns_forbidden_when_user_has_no_vps_access(): void
+    {
+        $user = Mockery::mock(User::class)->makePartial();
+        $user->id = 99;
+        $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
+
+        $this->vpsRepository->shouldReceive('userHasAccess')->with(99, 'vps-1')->once()->andReturn(false);
         $this->client->shouldNotReceive('getVpsSshKeys');
 
         $result = $this->useCase->execute($user, 'vps-1');
@@ -86,7 +100,6 @@ class GetVpsSshKeysTest extends TestCase
     {
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = 42;
-        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
         $this->vpsRepository->shouldReceive('userHasAccess')->with(42, 'vps-1')->once()->andReturn(true);
@@ -106,7 +119,6 @@ class GetVpsSshKeysTest extends TestCase
     {
         $user = Mockery::mock(User::class)->makePartial();
         $user->id = 42;
-        $user->shouldReceive('can')->with('VPS.PublicKeys.read')->andReturn(true);
         $user->shouldReceive('can')->with('Manage.Permissions.VPS.all')->andReturn(false);
 
         $this->vpsRepository->shouldReceive('userHasAccess')->with(42, 'vps-1')->once()->andReturn(true);

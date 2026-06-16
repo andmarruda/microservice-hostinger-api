@@ -18,10 +18,6 @@ class GetVpsList
 
     public function execute(User $user): ProxyResult
     {
-        if (!$user->can('VPS.VirtualMachine.Manage.read')) {
-            return ProxyResult::forbidden();
-        }
-
         try {
             $allVps = InstrumentedCache::remember('hostinger:vps:list:all', 86400, fn () => $this->client->getVpsList());
 

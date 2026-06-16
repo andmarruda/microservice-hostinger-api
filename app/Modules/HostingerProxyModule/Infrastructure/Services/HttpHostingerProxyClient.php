@@ -124,7 +124,14 @@ class HttpHostingerProxyClient implements HostingerProxyClientInterface
 
     public function getVpsSshKeys(string $vpsId): array
     {
-        return $this->get('/api/vps/v1/public-keys');
+        try {
+            return $this->get("/api/vps/v1/virtual-machines/{$vpsId}/public-keys");
+        } catch (\RuntimeException $e) {
+            if ($e->getCode() === 404) {
+                return $this->get('/api/vps/v1/public-keys');
+            }
+            throw $e;
+        }
     }
 
     public function getVpsSnapshots(string $vpsId): array

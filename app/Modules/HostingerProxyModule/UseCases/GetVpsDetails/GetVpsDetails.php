@@ -19,10 +19,6 @@ class GetVpsDetails
 
     public function execute(User $user, string $vpsId): ProxyResult
     {
-        if (! $user->can('VPS.VirtualMachine.Manage.details')) {
-            return ProxyResult::forbidden();
-        }
-
         if (! $user->can('Manage.Permissions.VPS.all') && ! $this->vpsRepository->userHasAccess($user->id, $vpsId)) {
             return ProxyResult::forbidden();
         }

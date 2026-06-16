@@ -30,9 +30,9 @@ class VpsReadControllerTest extends TestCase
         ]);
     }
 
-    public function test_authenticated_user_with_permission_can_list_vps(): void
+    public function test_admin_can_list_all_vps(): void
     {
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.read');
+        $user = User::factory()->create();
         $this->givePermission($user, 'Manage.Permissions.VPS.all');
 
         $response = $this->actingAs($user)->getJson('/api/v1/vps');
@@ -42,7 +42,7 @@ class VpsReadControllerTest extends TestCase
 
     public function test_scoped_user_sees_only_granted_vps(): void
     {
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.read');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
 
         $response = $this->actingAs($user)->getJson('/api/v1/vps');
@@ -60,18 +60,9 @@ class VpsReadControllerTest extends TestCase
         $response->assertStatus(401);
     }
 
-    public function test_user_without_permission_gets_forbidden_on_list(): void
+    public function test_user_with_vps_access_grant_can_get_vps_details(): void
     {
         $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->getJson('/api/v1/vps');
-
-        $response->assertStatus(403);
-    }
-
-    public function test_user_with_access_grant_can_get_vps_details(): void
-    {
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.details');
         VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
 
         $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}");
@@ -79,22 +70,31 @@ class VpsReadControllerTest extends TestCase
         $response->assertStatus(200)->assertJsonStructure(['data']);
     }
 
-    public function test_user_with_access_can_get_vps_public_keys(): void
+    public function test_user_without_vps_access_grant_cannot_get_vps_details(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}");
+
+        $response->assertStatus(403);
+    }
+
+    public function test_user_with_vps_access_grant_can_get_public_keys(): void
     {
         Http::fake([
             '*/api/vps/v1/public-keys' => Http::response([
                 'data' => [
                     [
-                        'uuid' => 'key-1',
-                        'label' => 'Anderson laptop',
-                        'finger_print' => 'SHA256:abc123',
-                        'createdAt' => '2026-06-15T12:00:00Z',
+                        'id' => 'key-1',
+                        'name' => 'Anderson laptop',
+                        'fingerprint' => 'SHA256:abc123',
+                        'created_at' => '2026-06-15T12:00:00Z',
                     ],
                 ],
             ], 200),
         ]);
 
-        $user = $this->userWithPermission('VPS.VirtualMachine.PublicKeys.read');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
 
         $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}/public-keys");
@@ -107,39 +107,41 @@ class VpsReadControllerTest extends TestCase
         Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/vps/v1/public-keys'));
     }
 
-    public function test_public_keys_uses_account_endpoint_for_registered_keys(): void
+    public function test_user_without_vps_access_grant_cannot_get_public_keys(): void
     {
-        Http::fake([
-            '*/api/vps/v1/public-keys' => Http::response([
-                'data' => [
-                    [
-                        'id' => 'key-global-1',
-                        'name' => 'Registered key',
-                        'fingerprint' => 'SHA256:global123',
-                    ],
-                ],
-            ], 200),
-        ]);
-
-        $user = $this->userWithPermission('VPS.VirtualMachine.PublicKeys.read');
-        VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}/public-keys");
 
-        $response->assertStatus(200)
-            ->assertJsonPath('data.0.id', 'key-global-1')
-            ->assertJsonPath('data.0.name', 'Registered key');
-
-        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/vps/v1/public-keys'));
+        $response->assertStatus(403);
     }
 
-    public function test_user_without_access_grant_cannot_get_vps_details(): void
+    public function test_user_with_vps_access_can_get_metrics(): void
     {
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.details');
+        Http::fake([
+            "*/virtual-machines/{$this->vpsId}/metrics*" => Http::response([
+                'cpu_usage' => ['unit' => '%', 'usage' => ['100' => 10.5, '200' => 12.25]],
+                'ram_usage' => ['unit' => 'bytes', 'usage' => ['100' => 1048576, '200' => 2097152]],
+                'disk_space' => ['unit' => 'bytes', 'usage' => ['100' => 1073741824, '200' => 2147483648]],
+                'incoming_traffic' => ['unit' => 'bytes', 'usage' => ['100' => 1000, '200' => 2000]],
+                'outgoing_traffic' => ['unit' => 'bytes', 'usage' => ['100' => 3000, '200' => 4000]],
+                'uptime' => ['unit' => 'seconds', 'usage' => ['100' => 50, '200' => 100]],
+            ], 200),
+        ]);
 
-        $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}");
+        $user = User::factory()->create();
+        VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
 
-        $response->assertStatus(403);
+        $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}/metrics");
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.cpu_usage', 12.25)
+            ->assertJsonPath('data.memory_usage', 2)
+            ->assertJsonPath('data.disk_usage', 2);
+
+        Http::assertSent(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), "/virtual-machines/{$this->vpsId}/metrics")
+            && str_contains($request->url(), 'date_from=')
+            && str_contains($request->url(), 'date_to='));
     }
 
     public function test_user_with_permission_can_get_os_templates(): void
@@ -160,34 +162,6 @@ class VpsReadControllerTest extends TestCase
         $response->assertStatus(200)->assertJsonStructure(['data']);
     }
 
-    public function test_user_with_permission_and_access_can_get_metrics(): void
-    {
-        Http::fake([
-            "*/virtual-machines/{$this->vpsId}/metrics*" => Http::response([
-                'cpu_usage' => ['unit' => '%', 'usage' => ['100' => 10.5, '200' => 12.25]],
-                'ram_usage' => ['unit' => 'bytes', 'usage' => ['100' => 1048576, '200' => 2097152]],
-                'disk_space' => ['unit' => 'bytes', 'usage' => ['100' => 1073741824, '200' => 2147483648]],
-                'incoming_traffic' => ['unit' => 'bytes', 'usage' => ['100' => 1000, '200' => 2000]],
-                'outgoing_traffic' => ['unit' => 'bytes', 'usage' => ['100' => 3000, '200' => 4000]],
-                'uptime' => ['unit' => 'seconds', 'usage' => ['100' => 50, '200' => 100]],
-            ], 200),
-        ]);
-
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.metrics');
-        VpsAccessGrant::factory()->forUser($user->id)->forVps($this->vpsId)->create();
-
-        $response = $this->actingAs($user)->getJson("/api/v1/vps/{$this->vpsId}/metrics");
-
-        $response->assertStatus(200)
-            ->assertJsonPath('data.cpu_usage', 12.25)
-            ->assertJsonPath('data.memory_usage', 2)
-            ->assertJsonPath('data.disk_usage', 2);
-
-        Http::assertSent(fn ($request) => str_ends_with(parse_url($request->url(), PHP_URL_PATH), "/virtual-machines/{$this->vpsId}/metrics")
-            && str_contains($request->url(), 'date_from=')
-            && str_contains($request->url(), 'date_to='));
-    }
-
     public function test_hostinger_forbidden_on_details_returns_forbidden_response(): void
     {
         $vpsId = 'vps-forbidden-details';
@@ -196,7 +170,7 @@ class VpsReadControllerTest extends TestCase
             "https://developers.hostinger.com/api/vps/v1/virtual-machines/{$vpsId}" => Http::response(['message' => 'Forbidden'], 403),
         ]);
 
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.details');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($vpsId)->create();
 
         $this->actingAs($user)
@@ -213,7 +187,7 @@ class VpsReadControllerTest extends TestCase
             "https://developers.hostinger.com/api/vps/v1/virtual-machines/{$vpsId}/metrics*" => Http::response(['message' => 'Forbidden'], 403),
         ]);
 
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.metrics');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($vpsId)->create();
 
         $this->actingAs($user)
@@ -230,7 +204,7 @@ class VpsReadControllerTest extends TestCase
             "https://developers.hostinger.com/api/vps/v1/virtual-machines/{$vpsId}/metrics*" => Http::response(['message' => 'Unauthorized'], 401),
         ]);
 
-        $user = $this->userWithPermission('VPS.VirtualMachine.Manage.metrics');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($vpsId)->create();
 
         $this->actingAs($user)
@@ -247,7 +221,7 @@ class VpsReadControllerTest extends TestCase
             "https://developers.hostinger.com/api/vps/v1/virtual-machines/{$vpsId}/backups" => Http::response(['message' => 'Forbidden'], 403),
         ]);
 
-        $user = $this->userWithPermission('VPS.Backups.read');
+        $user = User::factory()->create();
         VpsAccessGrant::factory()->forUser($user->id)->forVps($vpsId)->create();
 
         $this->actingAs($user)

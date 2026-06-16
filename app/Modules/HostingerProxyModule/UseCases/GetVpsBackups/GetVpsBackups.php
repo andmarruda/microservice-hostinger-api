@@ -19,17 +19,14 @@ class GetVpsBackups
 
     public function execute(User $user, string $vpsId): ProxyResult
     {
-        if (! $user->can('VPS.Backups.read')) {
-            return ProxyResult::forbidden();
-        }
-
         if (! $user->can('Manage.Permissions.VPS.all') && ! $this->vpsRepository->userHasAccess($user->id, $vpsId)) {
             return ProxyResult::forbidden();
         }
 
         try {
             $cacheKey = "hostinger:vps:{$vpsId}:backups";
-            $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsBackups($vpsId));
+            $raw = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsBackups($vpsId));
+            $data = isset($raw['data']) && is_array($raw['data']) ? $raw['data'] : (array_is_list($raw) ? $raw : []);
 
             return ProxyResult::success($data);
         } catch (RequestException $e) {

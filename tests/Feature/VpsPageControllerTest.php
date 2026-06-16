@@ -6,6 +6,7 @@ use App\Modules\AuthModule\Models\User;
 use App\Modules\SecurityResourceModule\Models\SecurityPermission;
 use App\Modules\VpsModule\Models\VpsAccessGrant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class VpsPageControllerTest extends TestCase
     {
         parent::setUp();
 
+        Cache::flush();
         config(['services.hostinger.base_url' => 'https://developers.hostinger.com']);
     }
 
@@ -110,6 +112,95 @@ class VpsPageControllerTest extends TestCase
 
         Http::assertSent(fn ($request) => $request->method() === 'DELETE'
             && str_ends_with($request->url(), '/api/vps/v1/public-keys/key-1'));
+    }
+
+    public function test_vps_show_page_renders_ssh_keys_from_hostinger_api(): void
+    {
+        Http::fake([
+            "*/virtual-machines/{$this->vpsId}" => Http::response([
+                'id' => $this->vpsId,
+                'hostname' => 'srv674296.hstgr.cloud',
+                'state' => 'running',
+                'ipv4' => [['address' => '147.93.15.156']],
+                'plan' => 'KVM 2',
+                'template' => ['name' => 'Debian 12'],
+            ], 200),
+            "*/virtual-machines/{$this->vpsId}/metrics*" => Http::response([], 200),
+            "*/virtual-machines/{$this->vpsId}/actions" => Http::response(['data' => []], 200),
+            "*/virtual-machines/{$this->vpsId}/backups" => Http::response(['data' => []], 200),
+            '*/api/vps/v1/public-keys' => Http::response([
+                'data' => [
+                    [
+                        'id' => 'key-abc-789',
+                        'name' => 'anderson-laptop',
+                        'fingerprint' => 'SHA256:xyzABC123def456',
+                        'created_at' => '2026-06-10T00:00:00Z',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $user = $this->userWithAccess();
+
+        $response = $this->actingAs($user)->get("/vps/{$this->vpsId}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Vps/Show')
+            ->where('sshKeys.0.id', 'key-abc-789')
+            ->where('sshKeys.0.name', 'anderson-laptop')
+            ->where('sshKeys.0.fingerprint', 'SHA256:xyzABC123def456')
+        );
+
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/api/vps/v1/public-keys'));
+    }
+
+    public function test_vps_show_page_shows_empty_ssh_keys_when_api_returns_none(): void
+    {
+        Http::fake([
+            "*/virtual-machines/{$this->vpsId}" => Http::response([
+                'id' => $this->vpsId,
+                'hostname' => 'srv674296.hstgr.cloud',
+                'state' => 'running',
+            ], 200),
+            "*/virtual-machines/{$this->vpsId}/metrics*" => Http::response([], 200),
+            "*/virtual-machines/{$this->vpsId}/actions" => Http::response(['data' => []], 200),
+            "*/virtual-machines/{$this->vpsId}/backups" => Http::response(['data' => []], 200),
+            '*/api/vps/v1/public-keys' => Http::response(['data' => []], 200),
+        ]);
+
+        $user = $this->userWithAccess();
+
+        $response = $this->actingAs($user)->get("/vps/{$this->vpsId}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Vps/Show')
+            ->where('sshKeys', [])
+        );
+    }
+
+    public function test_vps_show_page_passes_ssh_keys_error_when_hostinger_returns_403(): void
+    {
+        Http::fake([
+            "*/virtual-machines/{$this->vpsId}" => Http::response([
+                'id' => $this->vpsId,
+                'hostname' => 'srv674296.hstgr.cloud',
+                'state' => 'running',
+            ], 200),
+            "*/virtual-machines/{$this->vpsId}/metrics*" => Http::response([], 200),
+            "*/virtual-machines/{$this->vpsId}/actions" => Http::response(['data' => []], 200),
+            "*/virtual-machines/{$this->vpsId}/backups" => Http::response(['data' => []], 200),
+            '*/api/vps/v1/public-keys' => Http::response(['message' => 'Forbidden'], 403),
+        ]);
+
+        $user = $this->userWithAccess();
+
+        $response = $this->actingAs($user)->get("/vps/{$this->vpsId}");
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('Vps/Show')
+            ->where('sshKeys', [])
+            ->whereNot('resourceErrors.sshKeys', null)
+        );
     }
 
     private function userWithAccess(): User

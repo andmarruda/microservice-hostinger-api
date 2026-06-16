@@ -18,9 +18,6 @@ class GetVpsActions
 
     public function execute(User $user, string $vpsId): ProxyResult
     {
-        if (!$user->can('VPS.Actions.read')) {
-            return ProxyResult::forbidden();
-        }
 
         if (!$user->can('Manage.Permissions.VPS.all') && !$this->vpsRepository->userHasAccess($user->id, $vpsId)) {
             return ProxyResult::forbidden();
@@ -28,7 +25,8 @@ class GetVpsActions
 
         try {
             $cacheKey = "hostinger:vps:{$vpsId}:actions";
-            $data = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsActions($vpsId));
+            $raw = InstrumentedCache::remember($cacheKey, 86400, fn () => $this->client->getVpsActions($vpsId));
+            $data = isset($raw['data']) && is_array($raw['data']) ? $raw['data'] : (array_is_list($raw) ? $raw : []);
 
             return ProxyResult::success($data);
         } catch (\Throwable) {

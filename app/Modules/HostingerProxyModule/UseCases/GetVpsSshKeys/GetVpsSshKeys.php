@@ -19,10 +19,6 @@ class GetVpsSshKeys
 
     public function execute(User $user, string $vpsId): ProxyResult
     {
-        if (! $user->can('VPS.PublicKeys.read') && ! $user->can('VPS.VirtualMachine.PublicKeys.read')) {
-            return ProxyResult::forbidden();
-        }
-
         if (! $user->can('Manage.Permissions.VPS.all') && ! $this->vpsRepository->userHasAccess($user->id, $vpsId)) {
             return ProxyResult::forbidden();
         }

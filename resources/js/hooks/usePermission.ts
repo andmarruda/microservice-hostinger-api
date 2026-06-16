@@ -3,7 +3,7 @@ import { usePage } from '@inertiajs/react';
 
 export function usePermission() {
     const { auth } = usePage<SharedData>().props;
-    const isAdmin = auth.roles.includes('admin');
+    const isAdmin = auth.roles.includes('root') || auth.roles.includes('admin');
 
     return {
         can: (permission: string): boolean => isAdmin || auth.permissions.includes(permission),
